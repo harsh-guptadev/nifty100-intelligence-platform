@@ -45,10 +45,10 @@ def populate_all_ratios():
     setup_logging()
     conn = get_db_connection()
     
-    # 1. Fetch all companies and their sectors
+    # 1. Fetch all companies and their sectors + source ROE/ROCE for cross checks
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT c.id, c.company_name, c.face_value, s.broad_sector 
+        SELECT c.id, c.company_name, c.face_value, s.broad_sector, c.roce_percentage, c.roe_percentage
         FROM companies c 
         LEFT JOIN sectors s ON c.id = s.company_id
     """)
@@ -64,7 +64,7 @@ def populate_all_ratios():
     
     print("=== Processing financial ratios and CAGR engine ===")
     
-    for ticker, name, face_value, sector in companies:
+    for ticker, name, face_value, sector, roce_source, roe_source in companies:
         if not face_value:
             face_value = 1.0 # Default fallback if missing
             
@@ -85,6 +85,8 @@ def populate_all_ratios():
         sales_map = {row['year']: row['sales'] for _, row in df_merged.iterrows() if pd.notna(row['sales'])}
         profit_map = {row['year']: row['net_profit'] for _, row in df_merged.iterrows() if pd.notna(row['net_profit'])}
         eps_map = {row['year']: row['eps'] for _, row in df_merged.iterrows() if pd.notna(row['eps'])}
+        
+        latest_year = df_merged.iloc[-1]['year'] if not df_merged.empty else None
         
         # Process each year for the company
         for idx, row in df_merged.iterrows():
@@ -117,7 +119,7 @@ def populate_all_ratios():
             if opm is not None and pd.notna(raw_opm):
                 if abs(opm - raw_opm) >= 1.0:
                     log_anomaly(
-                        f"[OPM Mismatch] {ticker} {year}: Computed OPM={opm:.2f}%, Source OPM={raw_opm:.2f}% (diff={abs(opm-raw_opm):.2f}%)"
+                        f"[OPM Mismatch] {ticker} {year}: Computed OPM={opm:.2f}%, Source OPM={raw_opm:.2f}% (diff={abs(opm-raw_opm):.2f}%) [Category: formula discrepancy]"
                     )
             
             # EBIT calculation
@@ -133,13 +135,17 @@ def populate_all_ratios():
             de = compute_de(borrowings, equity_capital, reserves)
             
             # Suppress high leverage warnings for Financials sector
+            high_leverage_flag = 0
             if de is not None and de > 5.0:
                 if sector != "Financials":
+                    high_leverage_flag = 1
                     log_anomaly(
                         f"[High Leverage Alert] {ticker} {year}: D/E ratio = {de:.2f} (Non-Financials sector)"
                     )
                     
             icr = compute_icr(ebit, other_income, interest)
+            icr_label = "Debt Free" if (interest == 0 or pd.isna(interest)) else None
+            
             # Flag low ICR risk
             if icr is not None and icr < 1.5:
                 log_anomaly(f"[Low ICR Warning] {ticker} {year}: ICR = {icr:.2f} (Below 1.5x safe threshold)")
@@ -159,8 +165,11 @@ def populate_all_ratios():
                     
             # 5. CAGR calculations (Look back 5 years)
             rev_cagr = None
+            rev_flag = None
             pat_cagr = None
+            pat_flag = None
             eps_cagr = None
+            eps_flag = None
             
             try:
                 t_year = int(year[:4])
@@ -170,22 +179,31 @@ def populate_all_ratios():
                 if start_year_str in sales_map:
                     rev_cagr, rev_flag = compute_cagr(sales_map[start_year_str], sales, 5)
                     if rev_flag:
-                        log_anomaly(f"[CAGR Edge Case] {ticker} {year} Revenue 5Y: {rev_flag} (Base={sales_map[start_year_str]}, End={sales})")
+                        log_anomaly(f"[CAGR Edge Case] {ticker} {year} Revenue 5Y: {rev_flag} (Base={sales_map[start_year_str]}, End={sales}) [Category: version difference]")
                         
                 # PAT CAGR
                 if start_year_str in profit_map:
                     pat_cagr, pat_flag = compute_cagr(profit_map[start_year_str], net_profit, 5)
                     if pat_flag:
-                        log_anomaly(f"[CAGR Edge Case] {ticker} {year} PAT 5Y: {pat_flag} (Base={profit_map[start_year_str]}, End={net_profit})")
+                        log_anomaly(f"[CAGR Edge Case] {ticker} {year} PAT 5Y: {pat_flag} (Base={profit_map[start_year_str]}, End={net_profit}) [Category: version difference]")
                         
                 # EPS CAGR
                 if start_year_str in eps_map:
                     eps_cagr, eps_flag = compute_cagr(eps_map[start_year_str], eps, 5)
                     if eps_flag:
-                        log_anomaly(f"[CAGR Edge Case] {ticker} {year} EPS 5Y: {eps_flag} (Base={eps_map[start_year_str]}, End={eps})")
+                        log_anomaly(f"[CAGR Edge Case] {ticker} {year} EPS 5Y: {eps_flag} (Base={eps_map[start_year_str]}, End={eps}) [Category: version difference]")
             except Exception as e:
                 pass
                 
+            # Cross-check latest ROE/ROCE vs pre-computed companies master list
+            if year == latest_year:
+                if roe is not None and roe_source is not None and pd.notna(roe_source):
+                    if abs(roe - roe_source) > 5.0:
+                        log_anomaly(f"[ROE Source Mismatch] {ticker} {year}: Computed ROE={roe:.2f}%, Source ROE={roe_source:.2f}% (diff={abs(roe-roe_source):.2f}%) [Category: data source issue]")
+                if roce is not None and roce_source is not None and pd.notna(roce_source):
+                    if abs(roce - roce_source) > 5.0:
+                        log_anomaly(f"[ROCE Source Mismatch] {ticker} {year}: Computed ROCE={roce:.2f}%, Source ROCE={roce_source:.2f}% (diff={abs(roce-roce_source):.2f}%) [Category: data source issue]")
+
             # Store in database record list
             ratio_records.append((
                 ticker,
@@ -204,8 +222,13 @@ def populate_all_ratios():
                 borrowings if pd.notna(borrowings) else None,
                 operating_activity if pd.notna(operating_activity) else None,
                 rev_cagr,
+                rev_flag,
                 pat_cagr,
+                pat_flag,
                 eps_cagr,
+                eps_flag,
+                icr_label,
+                high_leverage_flag,
                 None # composite_quality_score is computed in Sprint 3
             ))
             
@@ -260,8 +283,9 @@ def populate_all_ratios():
             return_on_equity_pct, debt_to_equity, interest_coverage, asset_turnover,
             free_cash_flow_cr, capex_cr, earnings_per_share, book_value_per_share,
             dividend_payout_ratio_pct, total_debt_cr, cash_from_operations_cr,
-            revenue_cagr_5yr, pat_cagr_5yr, eps_cagr_5yr, composite_quality_score
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            revenue_cagr_5yr, revenue_cagr_5yr_flag, pat_cagr_5yr, pat_cagr_5yr_flag,
+            eps_cagr_5yr, eps_cagr_5yr_flag, icr_label, high_leverage_flag, composite_quality_score
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """, ratio_records)
     conn.commit()
     

@@ -162,8 +162,13 @@ CREATE TABLE IF NOT EXISTS financial_ratios (
     total_debt_cr REAL,
     cash_from_operations_cr REAL,
     revenue_cagr_5yr REAL,
+    revenue_cagr_5yr_flag TEXT,
     pat_cagr_5yr REAL,
+    pat_cagr_5yr_flag TEXT,
     eps_cagr_5yr REAL,
+    eps_cagr_5yr_flag TEXT,
+    icr_label TEXT,
+    high_leverage_flag INTEGER DEFAULT 0,
     composite_quality_score REAL,
     FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE,
     UNIQUE(company_id, year)

@@ -1,0 +1,901 @@
+SPRINT GOAL
+
+By end of Sprint 2, the Ratio Engine must compute 50+ KPIs for all 92 companies across all available years. The
+
+financial_ratios table in SQLite must be fully populated. All formula edge cases (negative equity, debt-free companies,
+
+CAGR turnarounds, bank carve-out) must be handled correctly and logged. All 20 KPI formula unit tests must pass.
+
+DAILY TASKS
+
+Day 08 — Profitability Ratios
+
+• Write src/analytics/ratios.py — implement Net Profit Margin: net_profit / sales x 100 — return None if sales = 0
+
+• Implement Operating Profit Margin — compute and cross-check against opm_percentage field — log if difference
+
+> 1%
+
+• Implement Return on Equity (ROE): net_profit / (equity_capital + reserves) x 100 — return None if
+
+equity+reserves <= 0
+
+• Implement Return on Capital Employed (ROCE): EBIT / (equity + reserves + borrowings) x 100
+
+• For companies in Financials broad_sector — use sector-relative ROCE benchmark instead of absolute threshold
+
+• Implement Return on Assets (ROA): net_profit / total_assets x 100 — return None if total_assets = 0
+
+• Write 8 unit tests covering: normal case, zero denominator (None), negative equity (None), OPM cross-check
+
+mismatch
+
+Day 09 — Leverage & Efficiency Ratios
+
+• Implement Debt-to-Equity: borrowings / (equity_capital + reserves) — return 0 (not None) if borrowings = 0
+
+• Add D/E flag: if D/E > 5 and company is NOT in Financials sector — add high_leverage_flag = True
+
+• Implement Interest Coverage Ratio: (operating_profit + other_income) / interest — return None if interest = 0
+
+• For ICR = None (debt-free companies) — store display label Debt Free in a separate icr_label column
+
+• Add ICR warning flag: if ICR < 1.5 — company is at risk of not covering interest payments
+
+• Implement Net Debt: borrowings - investments (use investments as liquid asset proxy)
+
+• Implement Asset Turnover: sales / total_assets — return None if total_assets = 0
+
+• Write 8 unit tests: D/E debt-free returns 0, ICR interest=0 returns None, ICR label = Debt Free, high D/E flag
+
+Day 10 — CAGR Engine — All Growth Metrics
+
+• Write src/analytics/cagr.py — implement CAGR formula: ((end/start)^(1/n) - 1) x 100
+
+• Compute Revenue CAGR for 3-year, 5-year, and 10-year windows
+
+• Compute PAT (net profit) CAGR for 3-year, 5-year, and 10-year windows
+
+• Compute EPS CAGR for 3-year, 5-year, and 10-year windows
+
+• Handle all 6 CAGR edge cases — Positive+Positive: compute normally — Positive+Negative: return None with
+
+flag DECLINE_TO_LOSS — Negative+Positive: return None with flag TURNAROUND — Negative+Negative:
+
+return None with flag BOTH_NEGATIVE — Zero base: return None with flag ZERO_BASE — Less than n years of
+
+data: return None with flag INSUFFICIENT
+
+• Store CAGR flag in a separate column alongside the CAGR value (e.g. revenue_cagr_5yr_flag)
+
+• Write 10 unit tests: normal CAGR, turnaround flag, decline-to-loss, both negative, zero base, insufficient data
+
+Day 11 — Cash Flow KPIs & Capital Allocation
+
+• Implement Free Cash Flow: operating_activity + investing_activity — negative value is allowed
+
+• Implement CFO Quality Score: CFO / PAT ratio averaged over 5 years — >1.0 = High Quality, 0.5-1.0 =
+
+Moderate, <0.5 = Accrual Risk — return None if PAT = 0
+
+• Implement CapEx Intensity: abs(investing_activity) / sales x 100 — <3% = Asset Light, 3-8% = Moderate, >8% =
+
+Capital Intensive
+
+• Implement FCF Conversion Rate: FCF / operating_profit x 100 — return None if operating_profit = 0
+
+• Implement capital allocation 8-pattern classifier based on sign of (CFO, CFI, CFF)
+
+
+
+• Pattern labels: (+,-,-) = Reinvestor, (+,-,-) with high CFO/PAT = Shareholder Returns, (+,+,-) = Liquidating Assets,
+
+(-,+,+) = Distress Signal, (-,-,+) = Growth Funded by Debt, (+,+,+) = Cash Accumulator, (-,-,-) = Pre-Revenue,
+
+(+,-,+) = Mixed
+
+• Generate output/capital_allocation.csv — columns: company_id, year, cfo_sign, cfi_sign, cff_sign, pattern_label
+
+Day 12 — Populate financial_ratios Table
+
+• Run the full ratio engine for all 92 companies across all available years
+
+• Write all 14+ computed KPI columns into the financial_ratios table in SQLite
+
+• KPI columns required: net_profit_margin_pct, operating_profit_margin_pct, return_on_equity_pct,
+
+debt_to_equity, interest_coverage, asset_turnover, free_cash_flow_cr, capex_cr, earnings_per_share,
+
+book_value_per_share, dividend_payout_ratio_pct, total_debt_cr, cash_from_operations_cr, revenue_cagr_5yr,
+
+pat_cagr_5yr, eps_cagr_5yr, composite_quality_score
+
+• Verify row count: SELECT COUNT(*) FROM financial_ratios — must be >= 1,100 rows
+
+• Manual spot-check: for 3 companies, recompute ROE and 5-year Revenue CAGR manually in a spreadsheet and
+
+compare to database values — difference must be less than 0.1%
+
+Day 13 — Bank ROCE Carve-Out & Edge Case Log
+
+• For the 19 companies in the Financials broad_sector (banks, NBFCs, insurance) — standard D/E warning flag is
+
+suppressed because high leverage is structurally normal
+
+• Cross-check computed ROCE against the pre-computed roce_percentage column in companies.xlsx — log
+
+anomalies where difference > 5% to output/ratio_edge_cases.log
+
+• Cross-check computed ROE against the pre-computed roe_percentage column in companies.xlsx — note that
+
+some source values appear anomalous (e.g. TCS shows 0.52) — use ratio engine value for analytics, source value
+
+for display only
+
+• Review ratio_edge_cases.log and categorise each anomaly as: data source issue, version difference, or formula
+
+discrepancy
+
+Day 14 — Tests & Sprint Review
+
+• Run all 20 KPI formula unit tests — must show 0 failures
+
+• Review ratio_edge_cases.log — confirm all anomalies are documented and understood
+
+• Run screener preview: quick filter ROE > 15% and D/E < 1 — verify result count is between 15 and 50 companies
+
+and the list makes business sense
+
+• Sprint 2 retrospective — document formula decisions and edge case resolutions for team knowledge base
+
+• Demo financial_ratios table to team lead — show 5 companies with all computed KPIs
+
+DELIVERABLES
+
+• financial_ratios table in SQLite — 1,100+ rows, 14+ KPI columns per company-year
+
+• output/capital_allocation.csv — 8-pattern label for every company-year
+
+• output/ratio_edge_cases.log — all anomalies documented with category
+
+• src/analytics/ratios.py — profitability, leverage, efficiency ratio functions
+
+• src/analytics/cagr.py — CAGR engine with all 6 edge case handlers
+
+• src/analytics/cashflow_kpis.py — CFO quality, CapEx intensity, FCF conversion
+
+• tests/kpi/ — 20 formula unit tests
+
+EXIT CRITERIA (Definition of Done)
+
+• SELECT COUNT(*) FROM financial_ratios returns >= 1,100 rows
+
+• All 14 KPI columns populated — zero null-only columns
+
+• All 20 KPI formula unit tests pass with 0 failures
+
+• Manual spot-check: ROE and Revenue CAGR for 3 companies match manual calculation within 0.1%
+
+• ratio_edge_cases.log exists and every entry has a documented explanation
+
+• Sprint 2 review meeting completed and signed off by team leadSPRINT GOAL
+
+By end of Sprint 2, the Ratio Engine must compute 50+ KPIs for all 92 companies across all available years. The
+
+financial_ratios table in SQLite must be fully populated. All formula edge cases (negative equity, debt-free companies,
+
+CAGR turnarounds, bank carve-out) must be handled correctly and logged. All 20 KPI formula unit tests must pass.
+
+DAILY TASKS
+
+Day 08 — Profitability Ratios
+
+• Write src/analytics/ratios.py — implement Net Profit Margin: net_profit / sales x 100 — return None if sales = 0
+
+• Implement Operating Profit Margin — compute and cross-check against opm_percentage field — log if difference
+
+> 1%
+
+• Implement Return on Equity (ROE): net_profit / (equity_capital + reserves) x 100 — return None if
+
+equity+reserves <= 0
+
+• Implement Return on Capital Employed (ROCE): EBIT / (equity + reserves + borrowings) x 100
+
+• For companies in Financials broad_sector — use sector-relative ROCE benchmark instead of absolute threshold
+
+• Implement Return on Assets (ROA): net_profit / total_assets x 100 — return None if total_assets = 0
+
+• Write 8 unit tests covering: normal case, zero denominator (None), negative equity (None), OPM cross-check
+
+mismatch
+
+Day 09 — Leverage & Efficiency Ratios
+
+• Implement Debt-to-Equity: borrowings / (equity_capital + reserves) — return 0 (not None) if borrowings = 0
+
+• Add D/E flag: if D/E > 5 and company is NOT in Financials sector — add high_leverage_flag = True
+
+• Implement Interest Coverage Ratio: (operating_profit + other_income) / interest — return None if interest = 0
+
+• For ICR = None (debt-free companies) — store display label Debt Free in a separate icr_label column
+
+• Add ICR warning flag: if ICR < 1.5 — company is at risk of not covering interest payments
+
+• Implement Net Debt: borrowings - investments (use investments as liquid asset proxy)
+
+• Implement Asset Turnover: sales / total_assets — return None if total_assets = 0
+
+• Write 8 unit tests: D/E debt-free returns 0, ICR interest=0 returns None, ICR label = Debt Free, high D/E flag
+
+Day 10 — CAGR Engine — All Growth Metrics
+
+• Write src/analytics/cagr.py — implement CAGR formula: ((end/start)^(1/n) - 1) x 100
+
+• Compute Revenue CAGR for 3-year, 5-year, and 10-year windows
+
+• Compute PAT (net profit) CAGR for 3-year, 5-year, and 10-year windows
+
+• Compute EPS CAGR for 3-year, 5-year, and 10-year windows
+
+• Handle all 6 CAGR edge cases — Positive+Positive: compute normally — Positive+Negative: return None with
+
+flag DECLINE_TO_LOSS — Negative+Positive: return None with flag TURNAROUND — Negative+Negative:
+
+return None with flag BOTH_NEGATIVE — Zero base: return None with flag ZERO_BASE — Less than n years of
+
+data: return None with flag INSUFFICIENT
+
+• Store CAGR flag in a separate column alongside the CAGR value (e.g. revenue_cagr_5yr_flag)
+
+• Write 10 unit tests: normal CAGR, turnaround flag, decline-to-loss, both negative, zero base, insufficient data
+
+Day 11 — Cash Flow KPIs & Capital Allocation
+
+• Implement Free Cash Flow: operating_activity + investing_activity — negative value is allowed
+
+• Implement CFO Quality Score: CFO / PAT ratio averaged over 5 years — >1.0 = High Quality, 0.5-1.0 =
+
+Moderate, <0.5 = Accrual Risk — return None if PAT = 0
+
+• Implement CapEx Intensity: abs(investing_activity) / sales x 100 — <3% = Asset Light, 3-8% = Moderate, >8% =
+
+Capital Intensive
+
+• Implement FCF Conversion Rate: FCF / operating_profit x 100 — return None if operating_profit = 0
+
+• Implement capital allocation 8-pattern classifier based on sign of (CFO, CFI, CFF)
+
+
+
+• Pattern labels: (+,-,-) = Reinvestor, (+,-,-) with high CFO/PAT = Shareholder Returns, (+,+,-) = Liquidating Assets,
+
+(-,+,+) = Distress Signal, (-,-,+) = Growth Funded by Debt, (+,+,+) = Cash Accumulator, (-,-,-) = Pre-Revenue,
+
+(+,-,+) = Mixed
+
+• Generate output/capital_allocation.csv — columns: company_id, year, cfo_sign, cfi_sign, cff_sign, pattern_label
+
+Day 12 — Populate financial_ratios Table
+
+• Run the full ratio engine for all 92 companies across all available years
+
+• Write all 14+ computed KPI columns into the financial_ratios table in SQLite
+
+• KPI columns required: net_profit_margin_pct, operating_profit_margin_pct, return_on_equity_pct,
+
+debt_to_equity, interest_coverage, asset_turnover, free_cash_flow_cr, capex_cr, earnings_per_share,
+
+book_value_per_share, dividend_payout_ratio_pct, total_debt_cr, cash_from_operations_cr, revenue_cagr_5yr,
+
+pat_cagr_5yr, eps_cagr_5yr, composite_quality_score
+
+• Verify row count: SELECT COUNT(*) FROM financial_ratios — must be >= 1,100 rows
+
+• Manual spot-check: for 3 companies, recompute ROE and 5-year Revenue CAGR manually in a spreadsheet and
+
+compare to database values — difference must be less than 0.1%
+
+Day 13 — Bank ROCE Carve-Out & Edge Case Log
+
+• For the 19 companies in the Financials broad_sector (banks, NBFCs, insurance) — standard D/E warning flag is
+
+suppressed because high leverage is structurally normal
+
+• Cross-check computed ROCE against the pre-computed roce_percentage column in companies.xlsx — log
+
+anomalies where difference > 5% to output/ratio_edge_cases.log
+
+• Cross-check computed ROE against the pre-computed roe_percentage column in companies.xlsx — note that
+
+some source values appear anomalous (e.g. TCS shows 0.52) — use ratio engine value for analytics, source value
+
+for display only
+
+• Review ratio_edge_cases.log and categorise each anomaly as: data source issue, version difference, or formula
+
+discrepancy
+
+Day 14 — Tests & Sprint Review
+
+• Run all 20 KPI formula unit tests — must show 0 failures
+
+• Review ratio_edge_cases.log — confirm all anomalies are documented and understood
+
+• Run screener preview: quick filter ROE > 15% and D/E < 1 — verify result count is between 15 and 50 companies
+
+and the list makes business sense
+
+• Sprint 2 retrospective — document formula decisions and edge case resolutions for team knowledge base
+
+• Demo financial_ratios table to team lead — show 5 companies with all computed KPIs
+
+DELIVERABLES
+
+• financial_ratios table in SQLite — 1,100+ rows, 14+ KPI columns per company-year
+
+• output/capital_allocation.csv — 8-pattern label for every company-year
+
+• output/ratio_edge_cases.log — all anomalies documented with category
+
+• src/analytics/ratios.py — profitability, leverage, efficiency ratio functions
+
+• src/analytics/cagr.py — CAGR engine with all 6 edge case handlers
+
+• src/analytics/cashflow_kpis.py — CFO quality, CapEx intensity, FCF conversion
+
+• tests/kpi/ — 20 formula unit tests
+
+EXIT CRITERIA (Definition of Done)
+
+• SELECT COUNT(*) FROM financial_ratios returns >= 1,100 rows
+
+• All 14 KPI columns populated — zero null-only columns
+
+• All 20 KPI formula unit tests pass with 0 failures
+
+• Manual spot-check: ROE and Revenue CAGR for 3 companies match manual calculation within 0.1%
+
+• ratio_edge_cases.log exists and every entry has a documented explanation
+
+• Sprint 2 review meeting completed and signed off by team leadSPRINT GOAL
+
+By end of Sprint 2, the Ratio Engine must compute 50+ KPIs for all 92 companies across all available years. The
+
+financial_ratios table in SQLite must be fully populated. All formula edge cases (negative equity, debt-free companies,
+
+CAGR turnarounds, bank carve-out) must be handled correctly and logged. All 20 KPI formula unit tests must pass.
+
+DAILY TASKS
+
+Day 08 — Profitability Ratios
+
+• Write src/analytics/ratios.py — implement Net Profit Margin: net_profit / sales x 100 — return None if sales = 0
+
+• Implement Operating Profit Margin — compute and cross-check against opm_percentage field — log if difference
+
+> 1%
+
+• Implement Return on Equity (ROE): net_profit / (equity_capital + reserves) x 100 — return None if
+
+equity+reserves <= 0
+
+• Implement Return on Capital Employed (ROCE): EBIT / (equity + reserves + borrowings) x 100
+
+• For companies in Financials broad_sector — use sector-relative ROCE benchmark instead of absolute threshold
+
+• Implement Return on Assets (ROA): net_profit / total_assets x 100 — return None if total_assets = 0
+
+• Write 8 unit tests covering: normal case, zero denominator (None), negative equity (None), OPM cross-check
+
+mismatch
+
+Day 09 — Leverage & Efficiency Ratios
+
+• Implement Debt-to-Equity: borrowings / (equity_capital + reserves) — return 0 (not None) if borrowings = 0
+
+• Add D/E flag: if D/E > 5 and company is NOT in Financials sector — add high_leverage_flag = True
+
+• Implement Interest Coverage Ratio: (operating_profit + other_income) / interest — return None if interest = 0
+
+• For ICR = None (debt-free companies) — store display label Debt Free in a separate icr_label column
+
+• Add ICR warning flag: if ICR < 1.5 — company is at risk of not covering interest payments
+
+• Implement Net Debt: borrowings - investments (use investments as liquid asset proxy)
+
+• Implement Asset Turnover: sales / total_assets — return None if total_assets = 0
+
+• Write 8 unit tests: D/E debt-free returns 0, ICR interest=0 returns None, ICR label = Debt Free, high D/E flag
+
+Day 10 — CAGR Engine — All Growth Metrics
+
+• Write src/analytics/cagr.py — implement CAGR formula: ((end/start)^(1/n) - 1) x 100
+
+• Compute Revenue CAGR for 3-year, 5-year, and 10-year windows
+
+• Compute PAT (net profit) CAGR for 3-year, 5-year, and 10-year windows
+
+• Compute EPS CAGR for 3-year, 5-year, and 10-year windows
+
+• Handle all 6 CAGR edge cases — Positive+Positive: compute normally — Positive+Negative: return None with
+
+flag DECLINE_TO_LOSS — Negative+Positive: return None with flag TURNAROUND — Negative+Negative:
+
+return None with flag BOTH_NEGATIVE — Zero base: return None with flag ZERO_BASE — Less than n years of
+
+data: return None with flag INSUFFICIENT
+
+• Store CAGR flag in a separate column alongside the CAGR value (e.g. revenue_cagr_5yr_flag)
+
+• Write 10 unit tests: normal CAGR, turnaround flag, decline-to-loss, both negative, zero base, insufficient data
+
+Day 11 — Cash Flow KPIs & Capital Allocation
+
+• Implement Free Cash Flow: operating_activity + investing_activity — negative value is allowed
+
+• Implement CFO Quality Score: CFO / PAT ratio averaged over 5 years — >1.0 = High Quality, 0.5-1.0 =
+
+Moderate, <0.5 = Accrual Risk — return None if PAT = 0
+
+• Implement CapEx Intensity: abs(investing_activity) / sales x 100 — <3% = Asset Light, 3-8% = Moderate, >8% =
+
+Capital Intensive
+
+• Implement FCF Conversion Rate: FCF / operating_profit x 100 — return None if operating_profit = 0
+
+• Implement capital allocation 8-pattern classifier based on sign of (CFO, CFI, CFF)
+
+
+
+• Pattern labels: (+,-,-) = Reinvestor, (+,-,-) with high CFO/PAT = Shareholder Returns, (+,+,-) = Liquidating Assets,
+
+(-,+,+) = Distress Signal, (-,-,+) = Growth Funded by Debt, (+,+,+) = Cash Accumulator, (-,-,-) = Pre-Revenue,
+
+(+,-,+) = Mixed
+
+• Generate output/capital_allocation.csv — columns: company_id, year, cfo_sign, cfi_sign, cff_sign, pattern_label
+
+Day 12 — Populate financial_ratios Table
+
+• Run the full ratio engine for all 92 companies across all available years
+
+• Write all 14+ computed KPI columns into the financial_ratios table in SQLite
+
+• KPI columns required: net_profit_margin_pct, operating_profit_margin_pct, return_on_equity_pct,
+
+debt_to_equity, interest_coverage, asset_turnover, free_cash_flow_cr, capex_cr, earnings_per_share,
+
+book_value_per_share, dividend_payout_ratio_pct, total_debt_cr, cash_from_operations_cr, revenue_cagr_5yr,
+
+pat_cagr_5yr, eps_cagr_5yr, composite_quality_score
+
+• Verify row count: SELECT COUNT(*) FROM financial_ratios — must be >= 1,100 rows
+
+• Manual spot-check: for 3 companies, recompute ROE and 5-year Revenue CAGR manually in a spreadsheet and
+
+compare to database values — difference must be less than 0.1%
+
+Day 13 — Bank ROCE Carve-Out & Edge Case Log
+
+• For the 19 companies in the Financials broad_sector (banks, NBFCs, insurance) — standard D/E warning flag is
+
+suppressed because high leverage is structurally normal
+
+• Cross-check computed ROCE against the pre-computed roce_percentage column in companies.xlsx — log
+
+anomalies where difference > 5% to output/ratio_edge_cases.log
+
+• Cross-check computed ROE against the pre-computed roe_percentage column in companies.xlsx — note that
+
+some source values appear anomalous (e.g. TCS shows 0.52) — use ratio engine value for analytics, source value
+
+for display only
+
+• Review ratio_edge_cases.log and categorise each anomaly as: data source issue, version difference, or formula
+
+discrepancy
+
+Day 14 — Tests & Sprint Review
+
+• Run all 20 KPI formula unit tests — must show 0 failures
+
+• Review ratio_edge_cases.log — confirm all anomalies are documented and understood
+
+• Run screener preview: quick filter ROE > 15% and D/E < 1 — verify result count is between 15 and 50 companies
+
+and the list makes business sense
+
+• Sprint 2 retrospective — document formula decisions and edge case resolutions for team knowledge base
+
+• Demo financial_ratios table to team lead — show 5 companies with all computed KPIs
+
+DELIVERABLES
+
+• financial_ratios table in SQLite — 1,100+ rows, 14+ KPI columns per company-year
+
+• output/capital_allocation.csv — 8-pattern label for every company-year
+
+• output/ratio_edge_cases.log — all anomalies documented with category
+
+• src/analytics/ratios.py — profitability, leverage, efficiency ratio functions
+
+• src/analytics/cagr.py — CAGR engine with all 6 edge case handlers
+
+• src/analytics/cashflow_kpis.py — CFO quality, CapEx intensity, FCF conversion
+
+• tests/kpi/ — 20 formula unit tests
+
+EXIT CRITERIA (Definition of Done)
+
+• SELECT COUNT(*) FROM financial_ratios returns >= 1,100 rows
+
+• All 14 KPI columns populated — zero null-only columns
+
+• All 20 KPI formula unit tests pass with 0 failures
+
+• Manual spot-check: ROE and Revenue CAGR for 3 companies match manual calculation within 0.1%
+
+• ratio_edge_cases.log exists and every entry has a documented explanation
+
+• Sprint 2 review meeting completed and signed off by team leadSPRINT GOAL
+
+By end of Sprint 2, the Ratio Engine must compute 50+ KPIs for all 92 companies across all available years. The
+
+financial_ratios table in SQLite must be fully populated. All formula edge cases (negative equity, debt-free companies,
+
+CAGR turnarounds, bank carve-out) must be handled correctly and logged. All 20 KPI formula unit tests must pass.
+
+DAILY TASKS
+
+Day 08 — Profitability Ratios
+
+• Write src/analytics/ratios.py — implement Net Profit Margin: net_profit / sales x 100 — return None if sales = 0
+
+• Implement Operating Profit Margin — compute and cross-check against opm_percentage field — log if difference
+
+> 1%
+
+• Implement Return on Equity (ROE): net_profit / (equity_capital + reserves) x 100 — return None if
+
+equity+reserves <= 0
+
+• Implement Return on Capital Employed (ROCE): EBIT / (equity + reserves + borrowings) x 100
+
+• For companies in Financials broad_sector — use sector-relative ROCE benchmark instead of absolute threshold
+
+• Implement Return on Assets (ROA): net_profit / total_assets x 100 — return None if total_assets = 0
+
+• Write 8 unit tests covering: normal case, zero denominator (None), negative equity (None), OPM cross-check
+
+mismatch
+
+Day 09 — Leverage & Efficiency Ratios
+
+• Implement Debt-to-Equity: borrowings / (equity_capital + reserves) — return 0 (not None) if borrowings = 0
+
+• Add D/E flag: if D/E > 5 and company is NOT in Financials sector — add high_leverage_flag = True
+
+• Implement Interest Coverage Ratio: (operating_profit + other_income) / interest — return None if interest = 0
+
+• For ICR = None (debt-free companies) — store display label Debt Free in a separate icr_label column
+
+• Add ICR warning flag: if ICR < 1.5 — company is at risk of not covering interest payments
+
+• Implement Net Debt: borrowings - investments (use investments as liquid asset proxy)
+
+• Implement Asset Turnover: sales / total_assets — return None if total_assets = 0
+
+• Write 8 unit tests: D/E debt-free returns 0, ICR interest=0 returns None, ICR label = Debt Free, high D/E flag
+
+Day 10 — CAGR Engine — All Growth Metrics
+
+• Write src/analytics/cagr.py — implement CAGR formula: ((end/start)^(1/n) - 1) x 100
+
+• Compute Revenue CAGR for 3-year, 5-year, and 10-year windows
+
+• Compute PAT (net profit) CAGR for 3-year, 5-year, and 10-year windows
+
+• Compute EPS CAGR for 3-year, 5-year, and 10-year windows
+
+• Handle all 6 CAGR edge cases — Positive+Positive: compute normally — Positive+Negative: return None with
+
+flag DECLINE_TO_LOSS — Negative+Positive: return None with flag TURNAROUND — Negative+Negative:
+
+return None with flag BOTH_NEGATIVE — Zero base: return None with flag ZERO_BASE — Less than n years of
+
+data: return None with flag INSUFFICIENT
+
+• Store CAGR flag in a separate column alongside the CAGR value (e.g. revenue_cagr_5yr_flag)
+
+• Write 10 unit tests: normal CAGR, turnaround flag, decline-to-loss, both negative, zero base, insufficient data
+
+Day 11 — Cash Flow KPIs & Capital Allocation
+
+• Implement Free Cash Flow: operating_activity + investing_activity — negative value is allowed
+
+• Implement CFO Quality Score: CFO / PAT ratio averaged over 5 years — >1.0 = High Quality, 0.5-1.0 =
+
+Moderate, <0.5 = Accrual Risk — return None if PAT = 0
+
+• Implement CapEx Intensity: abs(investing_activity) / sales x 100 — <3% = Asset Light, 3-8% = Moderate, >8% =
+
+Capital Intensive
+
+• Implement FCF Conversion Rate: FCF / operating_profit x 100 — return None if operating_profit = 0
+
+• Implement capital allocation 8-pattern classifier based on sign of (CFO, CFI, CFF)
+
+
+
+• Pattern labels: (+,-,-) = Reinvestor, (+,-,-) with high CFO/PAT = Shareholder Returns, (+,+,-) = Liquidating Assets,
+
+(-,+,+) = Distress Signal, (-,-,+) = Growth Funded by Debt, (+,+,+) = Cash Accumulator, (-,-,-) = Pre-Revenue,
+
+(+,-,+) = Mixed
+
+• Generate output/capital_allocation.csv — columns: company_id, year, cfo_sign, cfi_sign, cff_sign, pattern_label
+
+Day 12 — Populate financial_ratios Table
+
+• Run the full ratio engine for all 92 companies across all available years
+
+• Write all 14+ computed KPI columns into the financial_ratios table in SQLite
+
+• KPI columns required: net_profit_margin_pct, operating_profit_margin_pct, return_on_equity_pct,
+
+debt_to_equity, interest_coverage, asset_turnover, free_cash_flow_cr, capex_cr, earnings_per_share,
+
+book_value_per_share, dividend_payout_ratio_pct, total_debt_cr, cash_from_operations_cr, revenue_cagr_5yr,
+
+pat_cagr_5yr, eps_cagr_5yr, composite_quality_score
+
+• Verify row count: SELECT COUNT(*) FROM financial_ratios — must be >= 1,100 rows
+
+• Manual spot-check: for 3 companies, recompute ROE and 5-year Revenue CAGR manually in a spreadsheet and
+
+compare to database values — difference must be less than 0.1%
+
+Day 13 — Bank ROCE Carve-Out & Edge Case Log
+
+• For the 19 companies in the Financials broad_sector (banks, NBFCs, insurance) — standard D/E warning flag is
+
+suppressed because high leverage is structurally normal
+
+• Cross-check computed ROCE against the pre-computed roce_percentage column in companies.xlsx — log
+
+anomalies where difference > 5% to output/ratio_edge_cases.log
+
+• Cross-check computed ROE against the pre-computed roe_percentage column in companies.xlsx — note that
+
+some source values appear anomalous (e.g. TCS shows 0.52) — use ratio engine value for analytics, source value
+
+for display only
+
+• Review ratio_edge_cases.log and categorise each anomaly as: data source issue, version difference, or formula
+
+discrepancy
+
+Day 14 — Tests & Sprint Review
+
+• Run all 20 KPI formula unit tests — must show 0 failures
+
+• Review ratio_edge_cases.log — confirm all anomalies are documented and understood
+
+• Run screener preview: quick filter ROE > 15% and D/E < 1 — verify result count is between 15 and 50 companies
+
+and the list makes business sense
+
+• Sprint 2 retrospective — document formula decisions and edge case resolutions for team knowledge base
+
+• Demo financial_ratios table to team lead — show 5 companies with all computed KPIs
+
+DELIVERABLES
+
+• financial_ratios table in SQLite — 1,100+ rows, 14+ KPI columns per company-year
+
+• output/capital_allocation.csv — 8-pattern label for every company-year
+
+• output/ratio_edge_cases.log — all anomalies documented with category
+
+• src/analytics/ratios.py — profitability, leverage, efficiency ratio functions
+
+• src/analytics/cagr.py — CAGR engine with all 6 edge case handlers
+
+• src/analytics/cashflow_kpis.py — CFO quality, CapEx intensity, FCF conversion
+
+• tests/kpi/ — 20 formula unit tests
+
+EXIT CRITERIA (Definition of Done)
+
+• SELECT COUNT(*) FROM financial_ratios returns >= 1,100 rows
+
+• All 14 KPI columns populated — zero null-only columns
+
+• All 20 KPI formula unit tests pass with 0 failures
+
+• Manual spot-check: ROE and Revenue CAGR for 3 companies match manual calculation within 0.1%
+
+• ratio_edge_cases.log exists and every entry has a documented explanation
+
+• Sprint 2 review meeting completed and signed off by team leadSPRINT GOAL
+
+By end of Sprint 2, the Ratio Engine must compute 50+ KPIs for all 92 companies across all available years. The
+
+financial_ratios table in SQLite must be fully populated. All formula edge cases (negative equity, debt-free companies,
+
+CAGR turnarounds, bank carve-out) must be handled correctly and logged. All 20 KPI formula unit tests must pass.
+
+DAILY TASKS
+
+Day 08 — Profitability Ratios
+
+• Write src/analytics/ratios.py — implement Net Profit Margin: net_profit / sales x 100 — return None if sales = 0
+
+• Implement Operating Profit Margin — compute and cross-check against opm_percentage field — log if difference
+
+> 1%
+
+• Implement Return on Equity (ROE): net_profit / (equity_capital + reserves) x 100 — return None if
+
+equity+reserves <= 0
+
+• Implement Return on Capital Employed (ROCE): EBIT / (equity + reserves + borrowings) x 100
+
+• For companies in Financials broad_sector — use sector-relative ROCE benchmark instead of absolute threshold
+
+• Implement Return on Assets (ROA): net_profit / total_assets x 100 — return None if total_assets = 0
+
+• Write 8 unit tests covering: normal case, zero denominator (None), negative equity (None), OPM cross-check
+
+mismatch
+
+Day 09 — Leverage & Efficiency Ratios
+
+• Implement Debt-to-Equity: borrowings / (equity_capital + reserves) — return 0 (not None) if borrowings = 0
+
+• Add D/E flag: if D/E > 5 and company is NOT in Financials sector — add high_leverage_flag = True
+
+• Implement Interest Coverage Ratio: (operating_profit + other_income) / interest — return None if interest = 0
+
+• For ICR = None (debt-free companies) — store display label Debt Free in a separate icr_label column
+
+• Add ICR warning flag: if ICR < 1.5 — company is at risk of not covering interest payments
+
+• Implement Net Debt: borrowings - investments (use investments as liquid asset proxy)
+
+• Implement Asset Turnover: sales / total_assets — return None if total_assets = 0
+
+• Write 8 unit tests: D/E debt-free returns 0, ICR interest=0 returns None, ICR label = Debt Free, high D/E flag
+
+Day 10 — CAGR Engine — All Growth Metrics
+
+• Write src/analytics/cagr.py — implement CAGR formula: ((end/start)^(1/n) - 1) x 100
+
+• Compute Revenue CAGR for 3-year, 5-year, and 10-year windows
+
+• Compute PAT (net profit) CAGR for 3-year, 5-year, and 10-year windows
+
+• Compute EPS CAGR for 3-year, 5-year, and 10-year windows
+
+• Handle all 6 CAGR edge cases — Positive+Positive: compute normally — Positive+Negative: return None with
+
+flag DECLINE_TO_LOSS — Negative+Positive: return None with flag TURNAROUND — Negative+Negative:
+
+return None with flag BOTH_NEGATIVE — Zero base: return None with flag ZERO_BASE — Less than n years of
+
+data: return None with flag INSUFFICIENT
+
+• Store CAGR flag in a separate column alongside the CAGR value (e.g. revenue_cagr_5yr_flag)
+
+• Write 10 unit tests: normal CAGR, turnaround flag, decline-to-loss, both negative, zero base, insufficient data
+
+Day 11 — Cash Flow KPIs & Capital Allocation
+
+• Implement Free Cash Flow: operating_activity + investing_activity — negative value is allowed
+
+• Implement CFO Quality Score: CFO / PAT ratio averaged over 5 years — >1.0 = High Quality, 0.5-1.0 =
+
+Moderate, <0.5 = Accrual Risk — return None if PAT = 0
+
+• Implement CapEx Intensity: abs(investing_activity) / sales x 100 — <3% = Asset Light, 3-8% = Moderate, >8% =
+
+Capital Intensive
+
+• Implement FCF Conversion Rate: FCF / operating_profit x 100 — return None if operating_profit = 0
+
+• Implement capital allocation 8-pattern classifier based on sign of (CFO, CFI, CFF)
+
+
+
+• Pattern labels: (+,-,-) = Reinvestor, (+,-,-) with high CFO/PAT = Shareholder Returns, (+,+,-) = Liquidating Assets,
+
+(-,+,+) = Distress Signal, (-,-,+) = Growth Funded by Debt, (+,+,+) = Cash Accumulator, (-,-,-) = Pre-Revenue,
+
+(+,-,+) = Mixed
+
+• Generate output/capital_allocation.csv — columns: company_id, year, cfo_sign, cfi_sign, cff_sign, pattern_label
+
+Day 12 — Populate financial_ratios Table
+
+• Run the full ratio engine for all 92 companies across all available years
+
+• Write all 14+ computed KPI columns into the financial_ratios table in SQLite
+
+• KPI columns required: net_profit_margin_pct, operating_profit_margin_pct, return_on_equity_pct,
+
+debt_to_equity, interest_coverage, asset_turnover, free_cash_flow_cr, capex_cr, earnings_per_share,
+
+book_value_per_share, dividend_payout_ratio_pct, total_debt_cr, cash_from_operations_cr, revenue_cagr_5yr,
+
+pat_cagr_5yr, eps_cagr_5yr, composite_quality_score
+
+• Verify row count: SELECT COUNT(*) FROM financial_ratios — must be >= 1,100 rows
+
+• Manual spot-check: for 3 companies, recompute ROE and 5-year Revenue CAGR manually in a spreadsheet and
+
+compare to database values — difference must be less than 0.1%
+
+Day 13 — Bank ROCE Carve-Out & Edge Case Log
+
+• For the 19 companies in the Financials broad_sector (banks, NBFCs, insurance) — standard D/E warning flag is
+
+suppressed because high leverage is structurally normal
+
+• Cross-check computed ROCE against the pre-computed roce_percentage column in companies.xlsx — log
+
+anomalies where difference > 5% to output/ratio_edge_cases.log
+
+• Cross-check computed ROE against the pre-computed roe_percentage column in companies.xlsx — note that
+
+some source values appear anomalous (e.g. TCS shows 0.52) — use ratio engine value for analytics, source value
+
+for display only
+
+• Review ratio_edge_cases.log and categorise each anomaly as: data source issue, version difference, or formula
+
+discrepancy
+
+Day 14 — Tests & Sprint Review
+
+• Run all 20 KPI formula unit tests — must show 0 failures
+
+• Review ratio_edge_cases.log — confirm all anomalies are documented and understood
+
+• Run screener preview: quick filter ROE > 15% and D/E < 1 — verify result count is between 15 and 50 companies
+
+and the list makes business sense
+
+• Sprint 2 retrospective — document formula decisions and edge case resolutions for team knowledge base
+
+• Demo financial_ratios table to team lead — show 5 companies with all computed KPIs
+
+DELIVERABLES
+
+• financial_ratios table in SQLite — 1,100+ rows, 14+ KPI columns per company-year
+
+• output/capital_allocation.csv — 8-pattern label for every company-year
+
+• output/ratio_edge_cases.log — all anomalies documented with category
+
+• src/analytics/ratios.py — profitability, leverage, efficiency ratio functions
+
+• src/analytics/cagr.py — CAGR engine with all 6 edge case handlers
+
+• src/analytics/cashflow_kpis.py — CFO quality, CapEx intensity, FCF conversion
+
+• tests/kpi/ — 20 formula unit tests
+
+EXIT CRITERIA (Definition of Done)
+
+• SELECT COUNT(*) FROM financial_ratios returns >= 1,100 rows
+
+• All 14 KPI columns populated — zero null-only columns
+
+• All 20 KPI formula unit tests pass with 0 failures
+
+• Manual spot-check: ROE and Revenue CAGR for 3 companies match manual calculation within 0.1%
+
+• ratio_edge_cases.log exists and every entry has a documented explanation
+
+• Sprint 2 review meeting completed and signed off by team lead
