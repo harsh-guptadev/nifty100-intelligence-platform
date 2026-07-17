@@ -64,10 +64,10 @@ def test_run_presets():
 def test_preset_value_pick():
     df_data = get_screener_data()
     res_vp = run_preset_screener("Value Pick", df_data)
-    assert 5 <= len(res_vp) <= 50
+    assert 2 <= len(res_vp) <= 50
     for _, row in res_vp.iterrows():
-        assert row["pe_ratio"] < 30.0
-        assert row["pb_ratio"] < 4.0
+        assert row["pe_ratio"] < 20.0
+        assert row["pb_ratio"] < 3.0
         if str(row["broad_sector"]).lower() != "financials":
             assert row["debt_to_equity"] < 2.0
 

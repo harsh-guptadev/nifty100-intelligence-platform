@@ -9,8 +9,8 @@ presets:
     revenue_cagr_5yr_min: 10.0
 
   Value Pick:
-    pe_ratio_max: 30.0
-    pb_ratio_max: 4.0
+    pe_ratio_max: 20.0
+    pb_ratio_max: 3.0
     debt_to_equity_max: 2.0
     dividend_yield_pct_min: 1.0
 
