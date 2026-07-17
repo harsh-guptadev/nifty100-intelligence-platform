@@ -183,3 +183,17 @@ CREATE TABLE IF NOT EXISTS peer_groups (
     FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE,
     UNIQUE(peer_group_name, company_id)
 );
+
+-- 13. peer_percentiles (Percentile rankings computed in Sprint 3)
+CREATE TABLE IF NOT EXISTS peer_percentiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id TEXT NOT NULL,
+    peer_group_name TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    value REAL,
+    percentile_rank REAL,
+    year TEXT NOT NULL,
+    FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    UNIQUE(company_id, peer_group_name, metric, year)
+);
+

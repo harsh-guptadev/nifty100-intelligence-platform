@@ -21,11 +21,12 @@ def test_init_db_creates_tables(clean_test_db):
     init_db()
     assert os.path.exists(TEST_DB_PATH)
     
-    # Query sqlite_master to verify all 12 tables exist
+    # Query sqlite_master to verify all 13 tables exist
     expected_tables = {
         "companies", "profitandloss", "balancesheet", "cashflow", 
         "analysis", "documents", "prosandcons", "sectors", 
-        "stock_prices", "market_cap", "financial_ratios", "peer_groups"
+        "stock_prices", "market_cap", "financial_ratios", "peer_groups",
+        "peer_percentiles"
     }
     
     conn = sqlite3.connect(TEST_DB_PATH)
