@@ -79,11 +79,16 @@ pytest
 
 ## Known Design Decisions
 
-### CAGR Flag Proxy Mapping
-In `src/screener/engine.py`, non-numeric CAGR flags are mapped to numeric values to allow winsorization and threshold filtering:
+### 1. CAGR Flag Proxy Mapping & Filter Trade-Offs
+In [engine.py](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/src/screener/engine.py), non-numeric CAGR flags are mapped to numeric values to allow winsorization, scoring, and threshold filtering:
 - **`TURNAROUND` -> `+15.0%`**: Transitioning from loss to profit is a strong positive signal. The +15% proxy rewards this turnaround.
+  * **Trade-Off**: A company with a `TURNAROUND` flag will automatically pass any growth-minimum filter (e.g., `revenue_cagr_5yr_min: 10.0`) even though its literal growth rate is mathematically undefined (loss-to-profit transition).
 - **`DECLINE_TO_LOSS` -> `-15.0%`**: Transitioning from profit to loss is a severe decline. The -15% proxy penalizes this appropriately.
 - **`BOTH_NEGATIVE` -> `-10.0%`**: Staying negative across both periods is a persistent drag. A -10% proxy reflects this trend.
 - **`ZERO_BASE` -> `0.0%`**: A base value of zero makes growth mathematically undefined, treated as a neutral 0% proxy.
+
+### 2. Radar Charts for Peerless Companies (Visual Consistency)
+In [run_analysis.py](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/src/screener/run_analysis.py), rather than generating a single-metric standalone chart with the Nifty 100 average as a reference (as written in Day 19 of the spec), the implementation reuses the standard 8-axis polar plot layout. It overlays the company's scores against the Nifty 100 universe average (which defaults to the 50th percentile rank). This design choice was made to ensure visual consistency and standardized report formats across all 92 company reports.
+
 
 

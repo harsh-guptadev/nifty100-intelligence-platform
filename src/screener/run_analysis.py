@@ -52,6 +52,11 @@ THIN_BORDER = Border(
     bottom=Side(style='thin', color='D9D9D9')
 )
 
+# DESIGN DEVIATION FROM SPEC:
+# The Day 19 specification requested a "single-metric standalone chart" for companies with no peer group.
+# However, the implementation intentionally reuses the standard 8-axis polar/radar chart layout for peerless companies,
+# substituting the Nifty 100 universe average (50th percentile rank) as the reference benchmark instead.
+# This design decision was made to ensure visual consistency and standardized reporting formatting across all 92 company reports.
 def create_radar_charts(df_all: pd.DataFrame, df_pct: pd.DataFrame):
     """Generates and exports PNG radar charts for all companies."""
     os.makedirs(RADAR_CHARTS_DIR, exist_ok=True)
