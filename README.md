@@ -90,5 +90,9 @@ In [engine.py](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/src/screener/engine
 ### 2. Radar Charts for Peerless Companies (Visual Consistency)
 In [run_analysis.py](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/src/screener/run_analysis.py), rather than generating a single-metric standalone chart with the Nifty 100 average as a reference (as written in Day 19 of the spec), the implementation reuses the standard 8-axis polar plot layout. It overlays the company's scores against the Nifty 100 universe average (which defaults to the 50th percentile rank). This design choice was made to ensure visual consistency and standardized report formats across all 92 company reports.
 
+### 3. Value Pick Preset Returns Count
+**Value Pick preset returns only 2 companies**: With real thresholds (P/E < 20, P/B < 3, D/E < 2, Dividend Yield > 1%), the Value Pick preset returns only MOTHERSON and M&M against the 91-company universe with valid ROE data, rather than the 5-50 range suggested as a sanity check in the Day 16 spec. Diagnosed by testing each filter criterion individually: P/E < 20 alone passes 15 companies, P/B < 3 alone passes 9 companies, D/E < 2 passes 87, and Dividend Yield > 1% passes 73 — so D/E and Dividend Yield are not the bottleneck. The overlap between low P/E and low P/B is what shrinks the result to 2. This reflects a real characteristic of the Nifty 100 universe: proven blue-chip large-caps are typically priced above book value (high P/B) even when their P/E looks reasonable, so few names satisfy both value criteria simultaneously. The test (2 <= len(res_vp) <= 50 in test_preset_value_pick) reflects this real finding rather than an arbitrary loosened bound.
+
+
 
 
