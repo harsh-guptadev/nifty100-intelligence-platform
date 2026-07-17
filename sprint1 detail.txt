@@ -1,0 +1,56 @@
+SPRINT 1 DATA FOUNDATION
+Day 01 – 07 34 SP Epic 01 · Data Ingestion & ETL 34 SP
+Sprint Goal
+By end of Sprint 1, the team must have a fully loaded and validated SQLite database (nifty100.db) containing all 10 tables from 12 source files. All 16 data quality rules must have been run and any CRITICAL failures resolved. The foundation for all subsequent modules must be in place.
+
+Daily tasks
+Day 01
+Environment Setup
+Create dirs · venv · install 20 libs · .env · Makefile targets
+Day 02
+Excel Loader & Normaliser
+loader.py · normalize_year() · normalize_ticker() · 35+ unit tests
+Day 03
+Schema Validator — 16 DQ Rules
+DQ-01 … DQ-16 · CRITICAL PK/FK · WARNING OPM, balance, sales · generate validation_failures.csv
+Day 04
+SQLite Database Schema
+schema.sql · 10 tables · PK/FK · loader.py · PRAGMA foreign_keys = ON
+Day 05
+Full Data Load — All 12 Files
+7 core + 5 supplementary · load order · load_audit.csv · row counts: companies=92, P&L~1276, BS~1312, CF~1187, prices=5520 · FK check 0
+Day 06
+Data Quality Manual Review
+5 random companies · year coverage · companies with <5 years · fix loader bugs · re-run
+Day 07
+Sprint Wrap-Up & Review
+exploratory_queries.sql · unit tests 0 failures · demo nifty100.db · retrospective · update board
+Deliverables
+nifty100.db — 10 tables populated
+output/load_audit.csv — per-table row counts & rejections
+output/validation_failures.csv — DQ violations with severity
+src/etl/loader.py, validator.py, normaliser.py
+db/schema.sql — 10-table SQLite schema
+tests/etl/ — 35+ unit tests
+notebooks/exploratory_queries.sql (10 queries)
+Exit criteria · Definition of Done
+SELECT COUNT(*) FROM companies = 92
+PRAGMA foreign_key_check → 0 rows
+load_audit.csv → zero CRITICAL rejections
+35+ ETL unit tests pass
+Manual review: 5 companies correct
+Sprint review signed off
+DQ-01 PK uniqueness
+DQ-02 (company_id, year) PK
+DQ-03 FK integrity
+DQ-04 BS balance <1%
+DQ-05 OPM cross-check
+DQ-06 Positive sales
+16 DQ rules implemented · CRITICAL failures resolved before Day 05
+12 source files · 7 core Excel + 5 supplementary
+10 tables: companies, profitandloss, balancesheet, cashflow, analysis, documents, prosandcons, sectors, stock_prices, financial_ratios, peer_groups
+Load audit: companies=92, P&L~1276, BS~1312, CF~1187, stock_prices=5520
+Sprint 1 · Day 01–07 · 34 story points
+Makefile targets: load, ratios, test, report, dashboard, api, clean
+Unit tests: 35+ · 20 normalize_year 15 normalize_ticker
+DQ-01 to DQ-16 · including net cash, tax rate, dividend cap, URL, EPS sign, BSE balance, coverage
