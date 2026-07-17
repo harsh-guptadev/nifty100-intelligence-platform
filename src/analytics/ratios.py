@@ -67,18 +67,18 @@ def compute_de(borrowings: float, equity_capital: float, reserves: float) -> flo
         return None
     return float(borrowings / denominator)
 
-def compute_icr(ebit: float, other_income: float, interest: float) -> float | None:
+def compute_icr(operating_profit: float, other_income: float, interest: float) -> float | None:
     """
-    Interest Coverage Ratio (ICR) = (EBIT + other_income) / interest.
+    Interest Coverage Ratio (ICR) = (operating_profit + other_income) / interest.
     Returns None if interest is 0 or NaN (meaning "Debt Free").
     """
     if pd.isna(interest) or interest == 0:
         return None
-    ebit_val = ebit if pd.notna(ebit) else 0.0
+    op_profit_val = operating_profit if pd.notna(operating_profit) else 0.0
     other_inc_val = other_income if pd.notna(other_income) else 0.0
-    if pd.isna(ebit) and pd.isna(other_income):
+    if pd.isna(operating_profit) and pd.isna(other_income):
         return None
-    return float((ebit_val + other_inc_val) / interest)
+    return float((op_profit_val + other_inc_val) / interest)
 
 def compute_net_debt(borrowings: float, investments: float) -> float:
     """

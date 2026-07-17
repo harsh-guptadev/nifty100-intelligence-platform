@@ -54,9 +54,8 @@ def populate_all_ratios():
     """)
     companies = cursor.fetchall()
     
-    # We will accumulate ratio records for insertion and capital allocation records for CSV
-    ratio_records = []
-    capital_allocation_rows = []
+    # We will accumulate temporary computed rows to calculate sector-relative ROCE medians dynamically
+    computed_rows = []
     
     # Clear existing financial_ratios table
     cursor.execute("DELETE FROM financial_ratios;")
@@ -137,13 +136,15 @@ def populate_all_ratios():
             # Suppress high leverage warnings for Financials sector
             high_leverage_flag = 0
             if de is not None and de > 5.0:
-                if sector != "Financials":
+                sector_cleaned = sector.strip() if sector else ""
+                if sector_cleaned.lower() != "financials":
                     high_leverage_flag = 1
                     log_anomaly(
                         f"[High Leverage Alert] {ticker} {year}: D/E ratio = {de:.2f} (Non-Financials sector)"
                     )
                     
-            icr = compute_icr(ebit, other_income, interest)
+            # Pass raw operating_profit instead of ebit to compute_icr as per spec formula
+            icr = compute_icr(operating_profit, other_income, interest)
             icr_label = "Debt Free" if (interest == 0 or pd.isna(interest)) else None
             
             # Flag low ICR risk
@@ -204,76 +205,116 @@ def populate_all_ratios():
                     if abs(roce - roce_source) > 5.0:
                         log_anomaly(f"[ROCE Source Mismatch] {ticker} {year}: Computed ROCE={roce:.2f}%, Source ROCE={roce_source:.2f}% (diff={abs(roce-roce_source):.2f}%) [Category: data source issue]")
 
-            # Store in database record list
-            ratio_records.append((
-                ticker,
-                year,
-                npm,
-                opm,
-                roe,
-                de,
-                icr,
-                asset_turnover,
-                fcf,
-                capex,
-                eps,
-                bvps,
-                dividend_payout,
-                borrowings if pd.notna(borrowings) else None,
-                operating_activity if pd.notna(operating_activity) else None,
-                rev_cagr,
-                rev_flag,
-                pat_cagr,
-                pat_flag,
-                eps_cagr,
-                eps_flag,
-                icr_label,
-                high_leverage_flag,
-                None # composite_quality_score is computed in Sprint 3
-            ))
+            computed_rows.append({
+                'company_id': ticker,
+                'company_name': name,
+                'year': year,
+                'npm': npm,
+                'opm': opm,
+                'roe': roe,
+                'roce': roce,
+                'roa': roa,
+                'de': de,
+                'icr': icr,
+                'asset_turnover': asset_turnover,
+                'fcf': fcf,
+                'capex': capex,
+                'eps': eps,
+                'bvps': bvps,
+                'dividend_payout': dividend_payout,
+                'borrowings': borrowings if pd.notna(borrowings) else None,
+                'operating_activity': operating_activity if pd.notna(operating_activity) else None,
+                'investing_activity': investing_activity if pd.notna(investing_activity) else None,
+                'financing_activity': financing_activity if pd.notna(financing_activity) else None,
+                'rev_cagr': rev_cagr,
+                'rev_flag': rev_flag,
+                'pat_cagr': pat_cagr,
+                'pat_flag': pat_flag,
+                'eps_cagr': eps_cagr,
+                'eps_flag': eps_flag,
+                'icr_label': icr_label,
+                'high_leverage_flag': high_leverage_flag,
+                'sector': sector or "Unknown",
+                'net_profit': net_profit
+            })
             
-        # 6. Cash Flow Quality Metrics for the Latest Year
-        latest_row = df_merged.iloc[-1]
-        latest_year = latest_row['year']
+    # Calculate Dynamic Sector ROCE medians per year for anomaly detection
+    df_temp = pd.DataFrame(computed_rows)
+    df_valid_roce = df_temp[df_temp['roce'].notna()]
+    roce_medians = df_valid_roce.groupby(['sector', 'year'])['roce'].median().to_dict()
+    
+    ratio_records = []
+    capital_allocation_rows = []
+    
+    # Process final lists, apply ROCE benchmark checks and build capital allocation rows
+    for r in computed_rows:
+        ticker = r['company_id']
+        year = r['year']
+        roce = r['roce']
+        sector_str = r['sector']
         
-        # CFO Quality (last 5 years CFO and PAT)
-        window_5y = df_merged.iloc[-5:] if len(df_merged) >= 5 else df_merged
-        cfo_list = window_5y['operating_activity'].tolist()
-        pat_list = window_5y['net_profit'].tolist()
+        # Apply ROCE benchmark checks
+        if roce is not None:
+            if sector_str.strip().lower() == "financials":
+                benchmark = roce_medians.get((sector_str, year), 7.93)
+                if roce < benchmark:
+                    log_anomaly(
+                        f"[Low ROCE Warning] {ticker} {year}: ROCE = {roce:.2f}% (Below sector-relative benchmark of {benchmark:.2f}%)"
+                    )
+            else:
+                if roce < 10.0:
+                    log_anomaly(
+                        f"[Low ROCE Warning] {ticker} {year}: ROCE = {roce:.2f}% (Below 10.0% safe threshold)"
+                    )
+                    
+        # Accumulate ratios database records
+        ratio_records.append((
+            ticker,
+            year,
+            r['npm'],
+            r['opm'],
+            r['roe'],
+            r['de'],
+            r['icr'],
+            r['asset_turnover'],
+            r['fcf'],
+            r['capex'],
+            r['eps'],
+            r['bvps'],
+            r['dividend_payout'],
+            r['borrowings'],
+            r['operating_activity'],
+            r['rev_cagr'],
+            r['rev_flag'],
+            r['pat_cagr'],
+            r['pat_flag'],
+            r['eps_cagr'],
+            r['eps_flag'],
+            r['icr_label'],
+            r['high_leverage_flag'],
+            None  # composite_quality_score is explicitly deferred to Sprint 3 as documented
+        ))
         
-        cfo_score, cfo_label = compute_cfo_quality_score(cfo_list, pat_list)
+        # One row per company-year for capital allocation CSV
+        cfo_val = r['operating_activity']
+        cfi_val = r['investing_activity']
+        cff_val = r['financing_activity']
         
-        # CapEx Intensity
-        cfi_latest = latest_row.get('investing_activity')
-        sales_latest = latest_row.get('sales')
-        capex_intensity, capex_label = compute_capex_intensity(cfi_latest, sales_latest)
+        cfo_sign = "+" if (pd.notna(cfo_val) and cfo_val > 0) else "-"
+        cfi_sign = "+" if (pd.notna(cfi_val) and cfi_val > 0) else "-"
+        cff_sign = "+" if (pd.notna(cff_val) and cff_val > 0) else "-"
         
-        # Capital Allocation pattern classification
-        cfo_latest = latest_row.get('operating_activity')
-        cff_latest = latest_row.get('financing_activity')
-        pat_latest = latest_row.get('net_profit', 0.0)
-        div_latest = latest_row.get('dividend_payout', 0.0)
-        
-        pattern = "Mixed"
-        if pd.notna(cfo_latest) and pd.notna(cfi_latest) and pd.notna(cff_latest):
-            cfo_sign = "+" if cfo_latest > 0 else "-"
-            cfi_sign = "+" if cfi_latest > 0 else "-"
-            cff_sign = "+" if cff_latest > 0 else "-"
-            pattern = f"({cfo_sign},{cfi_sign},{cff_sign})"
-            
         allocation_label = classify_capital_allocation(
-            cfo_latest, cfi_latest, cff_latest, pat=pat_latest, dividend_payout_pct=div_latest
+            cfo_val, cfi_val, cff_val, pat=r['net_profit'], dividend_payout_pct=r['dividend_payout']
         )
         
         capital_allocation_rows.append({
             "company_id": ticker,
-            "company_name": name,
-            "cfo_quality_score": f"{cfo_score:.2f}" if cfo_score else "N/A",
-            "cfo_quality_label": cfo_label or "N/A",
-            "capex_intensity": f"{capex_intensity:.2f}%" if capex_intensity else "N/A",
-            "capex_intensity_label": capex_label or "N/A",
-            "capital_allocation_pattern": pattern,
-            "capital_allocation_label": allocation_label
+            "year": year,
+            "cfo_sign": cfo_sign,
+            "cfi_sign": cfi_sign,
+            "cff_sign": cff_sign,
+            "pattern_label": allocation_label
         })
         
     # Write ratios to DB

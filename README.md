@@ -64,3 +64,11 @@ To run the automated test suite verifying normalization and validation rules:
 pytest
 ```
 *(Alternatively, run `make test` to generate an HTML test coverage report under `reports/pytest_report.html`).*
+
+---
+
+## Sprint Notes & Accepted Exceptions
+
+### Sprint 2
+- **`composite_quality_score` Deferral**: As per agreement and design exception, the population of `composite_quality_score` in the `financial_ratios` table is deferred to Sprint 3. The scoring requires cross-sectional winsorization (P10/P90) and relative weights which are coupled with the ranking and peer-group engines of Sprint 3. This column is intentionally set to `NULL` for now and will be populated during Sprint 3 execution.
+
