@@ -53,15 +53,52 @@ def test_apply_filters_icr_debt_free():
 
 def test_run_presets():
     df_data = get_screener_data()
-    # Check that Quality Compounder returns reasonable results
+    
+    # 1. Quality Compounder
     res_qc = run_preset_screener("Quality Compounder", df_data)
-    assert len(res_qc) >= 5
-    assert len(res_qc) <= 50
-    # Check all returned have ROE > 15% and (D/E < 1.0 or Financials)
+    assert 5 <= len(res_qc) <= 50
     for _, row in res_qc.iterrows():
         assert row["return_on_equity_pct"] > 15.0
         if str(row["broad_sector"]).lower() != "financials":
             assert row["debt_to_equity"] < 1.0
+            
+    # 2. Value Pick
+    res_vp = run_preset_screener("Value Pick", df_data)
+    assert 5 <= len(res_vp) <= 50
+    for _, row in res_vp.iterrows():
+        assert row["pe_ratio"] < 30.0
+        assert row["pb_ratio"] < 4.0
+        if str(row["broad_sector"]).lower() != "financials":
+            assert row["debt_to_equity"] < 2.0
+            
+    # 3. Growth Accelerator
+    res_ga = run_preset_screener("Growth Accelerator", df_data)
+    assert 5 <= len(res_ga) <= 50
+    for _, row in res_ga.iterrows():
+        if str(row["broad_sector"]).lower() != "financials":
+            assert row["debt_to_equity"] < 2.0
+            
+    # 4. Dividend Champion
+    res_dc = run_preset_screener("Dividend Champion", df_data)
+    assert 5 <= len(res_dc) <= 50
+    for _, row in res_dc.iterrows():
+        assert row["dividend_yield_pct"] > 2.0
+        assert row["dividend_payout_ratio_pct"] < 80.0
+        
+    # 5. Debt-Free Blue Chip
+    res_dfbc = run_preset_screener("Debt-Free Blue Chip", df_data)
+    assert 5 <= len(res_dfbc) <= 50
+    for _, row in res_dfbc.iterrows():
+        if str(row["broad_sector"]).lower() != "financials":
+            assert row["debt_to_equity"] == 0.0
+        assert row["return_on_equity_pct"] > 12.0
+        
+    # 6. Turnaround Watch
+    res_tw = run_preset_screener("Turnaround Watch", df_data)
+    assert 5 <= len(res_tw) <= 50
+    for _, row in res_tw.iterrows():
+        assert row["free_cash_flow_cr"] > 0
+        assert row["revenue_cagr_3yr"] > 10.0
 
 def test_composite_scoring_distribution():
     df_data = get_screener_data()

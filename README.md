@@ -72,3 +72,18 @@ pytest
 ### Sprint 2
 - **`composite_quality_score` Deferral**: As per agreement and design exception, the population of `composite_quality_score` in the `financial_ratios` table is deferred to Sprint 3. The scoring requires cross-sectional winsorization (P10/P90) and relative weights which are coupled with the ranking and peer-group engines of Sprint 3. This column is intentionally set to `NULL` for now and will be populated during Sprint 3 execution.
 
+### Sprint 3
+- **Radar Charts for Peerless Companies**: Rather than generating a single-metric standalone chart with the Nifty 100 average as a reference (as written in Day 19 of the spec), the implementation reuses the standard 8-axis polar plot layout. It overlays the company's scores against the Nifty 100 universe average (which defaults to the 50th percentile rank). This design choice was made to maintain layout consistency across all exported radar charts.
+
+---
+
+## Known Design Decisions
+
+### CAGR Flag Proxy Mapping
+In `src/screener/engine.py`, non-numeric CAGR flags are mapped to numeric values to allow winsorization and threshold filtering:
+- **`TURNAROUND` -> `+15.0%`**: Transitioning from loss to profit is a strong positive signal. The +15% proxy rewards this turnaround.
+- **`DECLINE_TO_LOSS` -> `-15.0%`**: Transitioning from profit to loss is a severe decline. The -15% proxy penalizes this appropriately.
+- **`BOTH_NEGATIVE` -> `-10.0%`**: Staying negative across both periods is a persistent drag. A -10% proxy reflects this trend.
+- **`ZERO_BASE` -> `0.0%`**: A base value of zero makes growth mathematically undefined, treated as a neutral 0% proxy.
+
+

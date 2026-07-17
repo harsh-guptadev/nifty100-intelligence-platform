@@ -143,6 +143,7 @@ def create_radar_charts(df_all: pd.DataFrame, df_pct: pd.DataFrame):
             ref_label = "Peer Group Avg"
             title_suffix = f"({pg_name} Peer Group)"
         else:
+            # DESIGN DEVIATION: Reusing 8-axis format with Nifty 100 average for layout consistency instead of a separate single-metric chart type.
             ref_averages = [universe_averages[m] for m in metrics_list]
             ref_label = "Nifty 100 Avg"
             title_suffix = "(No Peer Group)"
@@ -315,10 +316,10 @@ def generate_screener_xlsx(df_all: pd.DataFrame):
                 if col_name in highlight_mapping:
                     filter_col = highlight_mapping[col_name]
                     is_match = filter_matches.get(filter_col)
-                    if is_match is True:
+                    if is_match == True:
                         cell.fill = GREEN_FILL
                         cell.font = GREEN_FONT
-                    elif is_match is False:
+                    elif is_match == False:
                         cell.fill = RED_FILL
                         cell.font = RED_FONT
                         

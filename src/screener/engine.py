@@ -159,6 +159,14 @@ def winsorize_and_scale(series: pd.Series, lower_quantile: float = 0.1, upper_qu
         
     return scaled
 
+# CAGR proxy choices rationale:
+# - TURNAROUND (+15.0): A transition from loss to profit is a strong positive signal.
+#   A +15% growth rate proxy rewards the company's turnaround performance.
+# - DECLINE_TO_LOSS (-15.0): Shifting from positive profit/revenue to loss is a severe decline.
+#   A -15% proxy penalizes this negative trend appropriately.
+# - BOTH_NEGATIVE (-10.0): Staying negative across both periods is a persistent drag on growth.
+#   A -10% proxy reflects this negative performance.
+# - ZERO_BASE (0.0): Base value of zero makes growth undefined; a neutral 0% proxy is used.
 def map_cagr_flag_to_numeric(val: float, flag: str) -> float:
     """Maps non-numeric CAGR flags to numeric proxies for winsorization."""
     if pd.notna(val):
