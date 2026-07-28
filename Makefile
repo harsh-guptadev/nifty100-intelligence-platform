@@ -20,31 +20,44 @@ else
     DEL = rm -f
 endif
 
-.PHONY: setup load ratios test report dashboard api clean
+.PHONY: setup load ratios cluster test report dashboard api clean
 
 setup:
 	python -m venv .venv
 	$(PIP) install -r requirements.txt
-	$(PYTHON) -c "import nltk; nltk.download('vader_lexicon')"
 
+# D-01/D-02/D-03: Ingest all Excel files into nifty100.db
 load:
-	$(PYTHON) src/etl/loader.py
+	$(PYTHON) -m src.etl.loader
 
+# D-05: Compute and populate the financial_ratios table
 ratios:
-	$(PYTHON) src/analytics/ratios.py
+	$(PYTHON) -m src.analytics.populate_ratios
 
+# D-19: Run KMeans clustering and generate cluster_labels.csv + plots
+cluster:
+	$(PYTHON) -m src.analytics.clustering
+
+# Run all 117 pytest tests and generate HTML report
+# Run this before every git commit. Zero failures are mandatory.
 test:
 	$(PYTEST) tests/ --html=reports/pytest_report.html --self-contained-html
 
+# D-16/D-17/D-18: Generate all company tearsheets, sector reports, and portfolio PDF
 report:
-	$(PYTHON) src/reports/portfolio_report.py
+	$(PYTHON) -m src.reports.tearsheet
+	$(PYTHON) -m src.reports.sector_report
+	$(PYTHON) -m src.reports.portfolio_summary
 
+# D-11: Launch Streamlit Dashboard on localhost:8501
 dashboard:
 	$(STREAMLIT) run src/dashboard/app.py
 
+# D-20: Launch FastAPI REST server on localhost:8000
 api:
 	$(UVICORN) src.api.main:app --reload --port 8000
 
+# Remove cache (.pyc) and test artifacts. Database remains untouched.
 clean:
 	@echo Cleaning up temporary and cache files...
 	-$(RM) src\etl\__pycache__ 2>nul || true
@@ -52,11 +65,14 @@ clean:
 	-$(RM) src\nlp\__pycache__ 2>nul || true
 	-$(RM) src\dashboard\__pycache__ 2>nul || true
 	-$(RM) src\api\__pycache__ 2>nul || true
+	-$(RM) src\api\routers\__pycache__ 2>nul || true
 	-$(RM) src\reports\__pycache__ 2>nul || true
+	-$(RM) src\screener\__pycache__ 2>nul || true
 	-$(RM) tests\etl\__pycache__ 2>nul || true
 	-$(RM) tests\kpi\__pycache__ 2>nul || true
 	-$(RM) tests\api\__pycache__ 2>nul || true
 	-$(RM) tests\dq\__pycache__ 2>nul || true
+	-$(RM) tests\__pycache__ 2>nul || true
 	-$(RM) .pytest_cache 2>nul || true
 	-$(RM) .ruff_cache 2>nul || true
 	@echo Clean complete.
