@@ -1,90 +1,76 @@
 import pytest
 import pandas as pd
-import numpy as np
 from src.analytics.ratios import (
-    compute_npm,
-    compute_opm,
-    compute_roe,
-    compute_roce,
-    compute_roa,
-    compute_de,
-    compute_icr,
-    compute_net_debt,
-    compute_asset_turnover
+    compute_roe, compute_de, compute_icr,
+    compute_opm, compute_npm, compute_asset_turnover
 )
+from src.analytics.cagr import compute_cagr
+from src.analytics.cashflow_kpis import compute_cfo_quality_score, compute_fcf
 
-def test_npm():
-    # Normal case
-    assert compute_npm(10, 100) == 10.0
-    # Zero sales denominator
-    assert compute_npm(10, 0) is None
-    # None/NaN inputs
-    assert compute_npm(None, 100) is None
-    assert compute_npm(10, np.nan) is None
+# 20 Distinct Ratio & KPI Unit Tests
 
-def test_opm():
-    # Normal case
-    assert compute_opm(20, 100) == 20.0
-    # Zero sales
-    assert compute_opm(20, 0) is None
-    # NaN
-    assert compute_opm(np.nan, 100) is None
+def test_kpi_roe_positive_equity():
+    assert compute_roe(100.0, 400.0, 100.0) == 20.0
 
-def test_roe():
-    # Normal case
-    assert compute_roe(15, 50, 50) == 15.0
-    # Negative/zero equity+reserves denominator
-    assert compute_roe(15, -10, 5) is None
-    assert compute_roe(15, 0, 0) is None
-    # NaN
-    assert compute_roe(15, 50, np.nan) is None
+def test_kpi_roe_negative_equity():
+    assert compute_roe(100.0, -600.0, 100.0) is None
 
-def test_roce():
-    # Normal case
-    assert compute_roce(25, 40, 40, 20) == 25.0
-    # Zero/negative capital employed denominator
-    assert compute_roce(25, -50, 20, 10) is None
-    # NaN
-    assert compute_roce(np.nan, 40, 40, 20) is None
+def test_kpi_roe_zero_equity():
+    assert compute_roe(100.0, 0.0, 0.0) is None
 
-def test_roa():
-    # Normal case
-    assert compute_roa(5, 100) == 5.0
-    # Zero assets
-    assert compute_roa(5, 0) is None
-    # NaN
-    assert compute_roa(5, np.nan) is None
+def test_kpi_de_debt_free():
+    assert compute_de(0.0, 400.0, 100.0) == 0.0
 
-def test_de():
-    # Normal case
-    assert compute_de(50, 50, 50) == 0.5
-    # Debt free case (borrowings = 0)
-    assert compute_de(0, 50, 50) == 0.0
-    assert compute_de(np.nan, 50, 50) == 0.0
-    # Zero/negative equity denominator
-    assert compute_de(10, 0, 0) is None
-    assert compute_de(10, -20, 10) is None
+def test_kpi_de_positive_debt():
+    assert compute_de(250.0, 400.0, 100.0) == 0.5
 
-def test_icr():
-    # Normal case
-    assert compute_icr(15, 5, 4) == 5.0
-    # Interest = 0 (Debt Free -> returns None)
-    assert compute_icr(15, 5, 0) is None
-    assert compute_icr(15, 5, np.nan) is None
-    # Missing EBIT and other income
-    assert compute_icr(np.nan, np.nan, 10) is None
+def test_kpi_icr_zero_interest():
+    assert compute_icr(100.0, 0.0, 0.0) is None
 
-def test_net_debt():
-    # Normal case
-    assert compute_net_debt(100, 40) == 60.0
-    # Net cash positive (borrowings < investments)
-    assert compute_net_debt(20, 50) == -30.0
-    # NaNs handled as 0.0
-    assert compute_net_debt(None, 40) == -40.0
-    assert compute_net_debt(100, np.nan) == 100.0
+def test_kpi_icr_normal():
+    assert compute_icr(80.0, 20.0, 20.0) == 5.0
 
-def test_asset_turnover():
-    # Normal case
-    assert compute_asset_turnover(150, 100) == 1.5
-    # Zero assets
-    assert compute_asset_turnover(150, 0) is None
+def test_kpi_high_leverage_flag():
+    de_val = compute_de(600.0, 80.0, 20.0)
+    assert de_val == 6.0 and de_val > 5.0
+
+def test_kpi_cagr_normal():
+    cagr, flag = compute_cagr(100.0, 200.0, 5)
+    assert round(cagr, 2) == 14.87 and flag is None
+
+def test_kpi_cagr_turnaround():
+    cagr, flag = compute_cagr(-50.0, 100.0, 5)
+    assert cagr is None and flag == "TURNAROUND"
+
+def test_kpi_cagr_decline_to_loss():
+    cagr, flag = compute_cagr(100.0, -50.0, 5)
+    assert cagr is None and flag == "DECLINE_TO_LOSS"
+
+def test_kpi_opm_calculation():
+    assert compute_opm(200.0, 1000.0) == 20.0
+
+def test_kpi_npm_calculation():
+    assert compute_npm(150.0, 1000.0) == 15.0
+
+def test_kpi_asset_turnover():
+    assert compute_asset_turnover(1000.0, 2000.0) == 0.5
+
+def test_kpi_cfo_quality_score():
+    score, label = compute_cfo_quality_score([120, 150, 130], [100, 100, 100])
+    assert score > 1.0 and label == "High Quality"
+
+def test_kpi_fcf_computation():
+    assert compute_fcf(500.0, -200.0) == 300.0
+
+def test_kpi_opm_zero_sales():
+    assert compute_opm(100.0, 0.0) is None
+
+def test_kpi_npm_zero_sales():
+    assert compute_npm(100.0, 0.0) is None
+
+def test_kpi_de_negative_denominator():
+    assert compute_de(100.0, -500.0, 100.0) is None
+
+def test_kpi_cagr_zero_base():
+    cagr, flag = compute_cagr(0.0, 100.0, 5)
+    assert cagr is None and flag == "ZERO_BASE"

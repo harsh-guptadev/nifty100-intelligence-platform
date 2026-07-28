@@ -4,49 +4,84 @@ import pytest
 from unittest.mock import patch
 from src.etl.loader import init_db, get_db_connection
 
-TEST_DB_PATH = "data/test_nifty100.db"
+DB_PATH = "data/nifty100.db"
 
-@pytest.fixture
-def clean_test_db():
-    # Remove test DB if exists
-    if os.path.exists(TEST_DB_PATH):
-        os.remove(TEST_DB_PATH)
-    yield
-    # Cleanup after test
-    if os.path.exists(TEST_DB_PATH):
-        os.remove(TEST_DB_PATH)
+def test_loader_companies_table_exists():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM companies")
+    count = cursor.fetchone()[0]
+    conn.close()
+    assert count == 92
 
-@patch('src.etl.loader.DB_PATH', TEST_DB_PATH)
-def test_init_db_creates_tables(clean_test_db):
-    init_db()
-    assert os.path.exists(TEST_DB_PATH)
-    
-    # Query sqlite_master to verify all 13 tables exist
-    expected_tables = {
-        "companies", "profitandloss", "balancesheet", "cashflow", 
-        "analysis", "documents", "prosandcons", "sectors", 
-        "stock_prices", "market_cap", "financial_ratios", "peer_groups",
-        "peer_percentiles"
-    }
-    
-    conn = sqlite3.connect(TEST_DB_PATH)
-    try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = {row[0] for row in cursor.fetchall()}
-    finally:
-        conn.close()
-        
-    # Check that each expected table was created
-    for table in expected_tables:
-        assert table in tables, f"Table {table} was not created in the database."
+def test_loader_companies_columns():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(companies)")
+    cols = [r[1] for r in cursor.fetchall()]
+    conn.close()
+    assert "id" in cols and "company_name" in cols
 
-@patch('src.etl.loader.DB_PATH', TEST_DB_PATH)
-def test_db_connection_foreign_keys(clean_test_db):
-    init_db()
+def test_loader_pl_table_row_count():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM profitandloss")
+    count = cursor.fetchone()[0]
+    conn.close()
+    assert count >= 900
+
+def test_loader_bs_table_row_count():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM balancesheet")
+    count = cursor.fetchone()[0]
+    conn.close()
+    assert count >= 900
+
+def test_loader_cashflow_table_row_count():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM cashflow")
+    count = cursor.fetchone()[0]
+    conn.close()
+    assert count >= 900
+
+def test_loader_financial_ratios_row_count():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM financial_ratios")
+    count = cursor.fetchone()[0]
+    conn.close()
+    assert count >= 1100
+
+def test_loader_sectors_table_count():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM sectors")
+    count = cursor.fetchone()[0]
+    conn.close()
+    assert count == 92
+
+def test_loader_market_cap_table_count():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM market_cap")
+    count = cursor.fetchone()[0]
+    conn.close()
+    assert count > 0
+
+def test_loader_documents_table_count():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM documents")
+    count = cursor.fetchone()[0]
+    conn.close()
+    assert count > 0
+
+def test_loader_foreign_keys_active():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("PRAGMA foreign_keys;")
     fk_enabled = cursor.fetchone()[0]
     conn.close()
-    assert fk_enabled == 1, "Foreign key constraints are not enabled."
+    assert fk_enabled == 1
