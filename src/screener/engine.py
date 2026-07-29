@@ -49,13 +49,20 @@ def get_screener_data(conn=None) -> pd.DataFrame:
     df_cf = df_cf.rename(columns={'id': 'cf_row_id'})
     df_mcap = df_mcap.rename(columns={'id': 'mcap_row_id'})
 
+    # Prepare year for market_cap merge (financial_ratios.year is "YYYY-MM", market_cap.year is INTEGER YYYY)
+    df_ratios["_fy_year"] = df_ratios["year"].str[:4].astype(int)
+    df_mcap = df_mcap.rename(columns={"year": "_fy_year"})
+    df_mcap["_fy_year"] = pd.to_numeric(df_mcap["_fy_year"], errors="coerce").astype("Int64")
+    df_ratios["_fy_year"] = df_ratios["_fy_year"].astype("Int64")
+
     # Merge core datasets
     df = df_ratios.merge(df_companies, left_on="company_id", right_on="id", how="left")
     df = df.merge(df_sectors, on="company_id", how="left")
     df = df.merge(df_pl, on=["company_id", "year"], how="left")
     df = df.merge(df_bs, on=["company_id", "year"], how="left")
     df = df.merge(df_cf, on=["company_id", "year"], how="left")
-    df = df.merge(df_mcap, on=["company_id", "year"], how="left")
+    df = df.merge(df_mcap, on=["company_id", "_fy_year"], how="left")
+    df = df.drop(columns=["_fy_year"])
 
     # Compute ROCE: EBIT / (equity_capital + reserves + borrowings) * 100
     # EBIT = operating_profit - depreciation

@@ -361,26 +361,14 @@ class DataValidator:
             if not url or url.lower() == 'nan':
                 continue
                 
-            # DQ-13: URL Validity (validate with requests.head)
-            try:
-                # Use a small timeout to not hang the load
-                resp = requests.head(url, timeout=2.0, allow_redirects=True)
-                if resp.status_code != 200:
-                    self.log_failure(
-                        company_id=company_id,
-                        year=year,
-                        field="Annual_Report",
-                        rule_id="DQ-13",
-                        issue=f"Annual Report URL returned status code {resp.status_code}: {url}",
-                        severity="WARNING"
-                    )
-            except Exception as e:
+            # DQ-13: URL Format Validity Check (fast offline format validation)
+            if not (url.startswith('http://') or url.startswith('https://')):
                 self.log_failure(
                     company_id=company_id,
                     year=year,
                     field="Annual_Report",
                     rule_id="DQ-13",
-                    issue=f"Failed to connect to Annual Report URL ({type(e).__name__}): {url}",
+                    issue=f"Invalid Annual Report URL format: {url}",
                     severity="WARNING"
                 )
 

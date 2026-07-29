@@ -86,9 +86,9 @@ The app will be available in your browser at `http://localhost:8501`.
 
 ## Final Deliverables & Acceptance
 
-- **KMeans Cluster Archetypes**: [cluster_labels.csv](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/output/cluster_labels.csv) & [elbow_plot.png](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/reports/elbow_plot.png)
-- **Pearson Correlation Heatmap**: [correlation_heatmap.png](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/reports/correlation_heatmap.png)
-- **OpenAPI 3.0 & Postman Collection**: [openapi.json](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/docs/openapi.json) & [postman_collection.json](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/docs/postman_collection.json)
-- **Pytest HTML Execution Report**: [pytest_report.html](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/reports/pytest_report.html) (117 Passed, 0 Failures)
-- **Institutional Analyst User Guide**: [analyst_guide.pdf](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/docs/analyst_guide.pdf) (10 Pages)
-- **Acceptance Checklist & Sign-Off**: [acceptance_checklist.pdf](file:///c:/Users/HARSH/OneDrive/Desktop/N1000/docs/acceptance_checklist.pdf) (All 20 AC Gates Passed)
+- **KMeans Cluster Archetypes**: [cluster_labels.csv](output/cluster_labels.csv) & [elbow_plot.png](reports/elbow_plot.png)
+- **Pearson Correlation Heatmap**: [correlation_heatmap.png](reports/correlation_heatmap.png)
+- **OpenAPI 3.0 & Postman Collection**: [openapi.json](docs/openapi.json) & [postman_collection.json](docs/postman_collection.json)
+- **Pytest HTML Execution Report**: [pytest_report.html](reports/pytest_report.html)
+- **Institutional Analyst User Guide**: [analyst_guide.pdf](docs/analyst_guide.pdf)
+- **Acceptance Checklist & Sign-Off**: [acceptance_checklist.pdf](docs/acceptance_checklist.pdf)

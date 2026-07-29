@@ -24,6 +24,13 @@ def init_db():
         
     conn = sqlite3.connect(DB_PATH)
     try:
+        conn.execute("PRAGMA foreign_keys = OFF;")
+        # Drop all tables for idempotent re-load
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [row[0] for row in cursor.fetchall() if not row[0].startswith("sqlite_")]
+        for t in tables:
+            cursor.execute(f"DROP TABLE IF EXISTS {t};")
         conn.execute("PRAGMA foreign_keys = ON;")
         with open(SCHEMA_PATH, "r") as f:
             conn.executescript(f.read())
