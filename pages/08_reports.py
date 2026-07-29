@@ -68,3 +68,33 @@ with col_pdf:
         )
     else:
         st.info("PDF Tearsheet will be available after Sprint 5 report generation.")
+
+st.markdown("---")
+
+# Daily Financial Intelligence PDF Report Section
+st.markdown("##### 📰 Executive Daily Financial Intelligence Summary Report")
+
+daily_dir = "reports/daily"
+daily_pdfs = [f for f in os.listdir(daily_dir) if f.endswith(".pdf")] if os.path.exists(daily_dir) else []
+
+col_daily_info, col_daily_btn = st.columns([3, 2])
+
+with col_daily_info:
+    st.write("**Daily Executive Intelligence Report (PDF)**")
+    st.caption("Includes market overview KPIs, top ROE & growth leaders, and sector performance snapshots.")
+
+with col_daily_btn:
+    if daily_pdfs:
+        latest_daily_file = sorted(daily_pdfs)[-1]
+        latest_daily_path = os.path.join(daily_dir, latest_daily_file)
+        with open(latest_daily_path, "rb") as f:
+            daily_bytes = f.read()
+        st.download_button(
+            label=f"📥 Download Daily Report ({latest_daily_file})",
+            data=daily_bytes,
+            file_name=latest_daily_file,
+            mime="application/pdf"
+        )
+    else:
+        st.info("Run `python -m src.reports.daily_report` to generate today's report.")
+
