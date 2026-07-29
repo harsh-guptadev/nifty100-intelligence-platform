@@ -55,12 +55,38 @@ Create a local `.env` file from the provided template:
 copy config\.env.template .env
 ```
 
-### 5. Running Data Ingestion & Clustering
-Ensure your raw Excel datasets are placed in `data/raw/` and run the data pipeline and clustering:
+### 5. Running the Full Data Pipeline
+Ensure your raw Excel datasets are placed in `data/raw/`. Run each step in order — each depends on the previous:
 ```powershell
+# Step 1: Ingest all Excel files into nifty100.db
 python -m src.etl.loader
+
+# Step 2: Compute and populate the financial_ratios table
+python -m src.analytics.populate_ratios
+
+# Step 3: Run screener analysis and export Excel outputs
+python -m src.screener.run_analysis
+
+# Step 4: Run valuation flags and export valuation reports
+python -m src.analytics.valuation
+
+# Step 5: Run cash-flow KPI analysis
+python -m src.analytics.cashflow_kpis
+
+# Step 6: Parse and generate NLP pros/cons narratives
+python -m src.nlp.parser
+python -m src.nlp.pros_cons_generator
+
+# Step 7: Run KMeans clustering and generate cluster_labels.csv + plots
 python -m src.analytics.clustering
+
+# Step 8: Generate all PDF tearsheets, sector reports, and portfolio summary
+python -m src.reports.tearsheet
+python -m src.reports.sector_report
+python -m src.reports.portfolio_summary
 ```
+
+> **Tip:** `make all` runs the full pipeline in the correct order automatically.
 
 ### 6. Running Tests & Generating HTML Test Report
 To execute all 117 unit and integration tests with HTML report output:
@@ -78,9 +104,9 @@ Interactive OpenAPI documentation will be available at `http://localhost:8000/do
 ### 8. Running the Streamlit Dashboard
 To launch the 8-screen interactive web dashboard on port `8501`:
 ```powershell
-streamlit run src/dashboard/app.py
+streamlit run app.py
 ```
-The app will be available in your browser at `http://localhost:8501`.
+The app must be launched from the project root (`app.py`) so that Streamlit correctly discovers the `pages/` directory and shows all 8 screens in the sidebar. The app will be available in your browser at `http://localhost:8501`.
 
 ---
 

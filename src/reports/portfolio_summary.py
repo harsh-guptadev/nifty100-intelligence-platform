@@ -114,7 +114,15 @@ def generate_portfolio_summary_pdf() -> str:
         if i < len(df_comp) - 1:
             story.append(PageBreak())
 
+    story.append(Spacer(1, 16))
+    story.append(Paragraph(
+        "<i>⚠ Simulated Data Notice: Market cap, P/E, P/B, and dividend yield figures in this "
+        "report are SIMULATED for this project — they are not real market data.</i>",
+        ParagraphStyle('Disclaimer', parent=styles['Normal'], fontSize=7, textColor=colors.HexColor('#64748B'), leading=9)
+    ))
+
     doc.build(story)
+
     size_kb = os.path.getsize(pdf_path) // 1024
     print(f"Portfolio summary PDF generated: {pdf_path} ({size_kb} KB)")
     return pdf_path

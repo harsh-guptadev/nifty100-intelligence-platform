@@ -5,6 +5,11 @@ from src.dashboard.utils.db import get_sectors, get_companies
 from src.screener.engine import get_screener_data
 
 st.title("🏭 Sector & Sub-Sector Deep-Dive Analysis")
+st.caption(
+    "⚠️ **Simulated Data Notice:** Market cap, P/E, P/B, and dividend yield figures "
+    "are **SIMULATED** for this project — not real market data."
+)
+
 
 df_sec = get_sectors()
 if df_sec.empty:

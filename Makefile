@@ -20,7 +20,7 @@ else
     DEL = rm -f
 endif
 
-.PHONY: setup load ratios cluster test report dashboard api clean
+.PHONY: setup load ratios analysis valuation cashflow nlp cluster report test dashboard api clean all
 
 setup:
 	python -m venv .venv
@@ -34,14 +34,26 @@ load:
 ratios:
 	$(PYTHON) -m src.analytics.populate_ratios
 
+# D-06: Run screener analysis and export screener_output.xlsx / peer_comparison.xlsx / etc.
+analysis:
+	$(PYTHON) -m src.screener.run_analysis
+
+# D-07: Run valuation flags and export valuation_summary.xlsx / valuation_flags.csv
+valuation:
+	$(PYTHON) -m src.analytics.valuation
+
+# D-08: Run cash-flow KPI analysis and export cashflow_intelligence.xlsx
+cashflow:
+	$(PYTHON) -m src.analytics.cashflow_kpis
+
+# D-09/D-10: Parse existing pros/cons and generate NLP narratives
+nlp:
+	$(PYTHON) -m src.nlp.parser
+	$(PYTHON) -m src.nlp.pros_cons_generator
+
 # D-19: Run KMeans clustering and generate cluster_labels.csv + plots
 cluster:
 	$(PYTHON) -m src.analytics.clustering
-
-# Run all 117 pytest tests and generate HTML report
-# Run this before every git commit. Zero failures are mandatory.
-test:
-	$(PYTEST) tests/ --html=reports/pytest_report.html --self-contained-html
 
 # D-16/D-17/D-18: Generate all company tearsheets, sector reports, and portfolio PDF
 report:
@@ -49,13 +61,23 @@ report:
 	$(PYTHON) -m src.reports.sector_report
 	$(PYTHON) -m src.reports.portfolio_summary
 
+# Run all 117 pytest tests and generate HTML report
+# Run this before every git commit. Zero failures are mandatory.
+test:
+	$(PYTEST) tests/ --html=reports/pytest_report.html --self-contained-html
+
 # D-11: Launch Streamlit Dashboard on localhost:8501
+# Runs from the project root (app.py) so the pages/ directory is discovered correctly.
 dashboard:
-	$(STREAMLIT) run src/dashboard/app.py
+	$(STREAMLIT) run app.py
 
 # D-20: Launch FastAPI REST server on localhost:8000
 api:
 	$(UVICORN) src.api.main:app --reload --port 8000
+
+# Run the complete pipeline end-to-end in dependency order.
+# Use this after a fresh clone: make setup && make all
+all: load ratios analysis valuation cashflow nlp cluster report test
 
 # Remove cache (.pyc) and test artifacts. Database remains untouched.
 clean:

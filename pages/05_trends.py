@@ -5,6 +5,11 @@ import plotly.graph_objects as go
 from src.dashboard.utils.db import get_companies, get_ratios, get_pl
 
 st.title("📈 Multi-Metric Trend Analysis & Historical Overlay")
+st.caption(
+    "⚠️ **Simulated Data Notice:** Stock price history and any price-derived metrics "
+    "are sourced from **SIMULATED** data for this project — not real market data."
+)
+
 
 df_comp = get_companies()
 if df_comp.empty:

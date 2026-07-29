@@ -133,6 +133,21 @@ def generate_tearsheet_pdf(company_id: str):
         if pd.notna(cons_raw) and str(cons_raw).strip():
             cons_list = [c.strip() for c in str(cons_raw).split("\n") if c.strip()]
 
+    # Fallback to output/pros_cons_generated.csv if database query yields empty pros/cons
+    if not pros_list or not cons_list:
+        csv_path = "output/pros_cons_generated.csv"
+        if os.path.exists(csv_path):
+            try:
+                df_csv = pd.read_csv(csv_path)
+                df_comp_pc = df_csv[df_csv["company_id"] == company_id]
+                if not df_comp_pc.empty:
+                    if not pros_list:
+                        pros_list = df_comp_pc[df_comp_pc["type"] == "pro"]["text"].tolist()
+                    if not cons_list:
+                        cons_list = df_comp_pc[df_comp_pc["type"] == "con"]["text"].tolist()
+            except Exception:
+                pass
+
     if not pros_list:
         pros_list = ["Solid market presence."]
     if not cons_list:
@@ -180,7 +195,15 @@ def generate_tearsheet_pdf(company_id: str):
         ]))
         story.append(ratios_table)
 
+    story.append(Spacer(1, 16))
+    story.append(Paragraph(
+        "<i>⚠ Simulated Data Notice: Market cap, P/E, P/B, and dividend yield figures in this "
+        "report are SIMULATED for this project — they are not real market data.</i>",
+        ParagraphStyle('Disclaimer', parent=styles['Normal'], fontSize=7, textColor=colors.HexColor('#64748B'), leading=9)
+    ))
+
     doc.build(story)
+
 
     # Clean up temporary chart images
     for p in [chart_path, line_chart_path]:

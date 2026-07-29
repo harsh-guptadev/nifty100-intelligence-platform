@@ -3,6 +3,10 @@ import pandas as pd
 from src.screener.engine import get_screener_data, apply_filters, calculate_composite_score
 
 st.title("🔍 Multi-Criteria Stock Screener Engine")
+st.caption(
+    "⚠️ **Simulated Data Notice:** Market cap, P/E, P/B, and dividend yield figures "
+    "shown in this screener are **SIMULATED** for this project — they are not real market data."
+)
 
 screener_df = get_screener_data()
 screener_df = calculate_composite_score(screener_df)

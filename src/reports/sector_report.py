@@ -146,7 +146,15 @@ def generate_sector_report(sector_name: str) -> str:
     ]))
     story.append(comp_table)
 
+    story.append(Spacer(1, 16))
+    story.append(Paragraph(
+        "<i>⚠ Simulated Data Notice: Market cap, P/E, P/B, and dividend yield figures in this "
+        "report are SIMULATED for this project — they are not real market data.</i>",
+        ParagraphStyle('Disclaimer', parent=styles['Normal'], fontSize=7, textColor=colors.HexColor('#64748B'), leading=9)
+    ))
+
     doc.build(story)
+
     return pdf_path
 
 
