@@ -122,9 +122,21 @@ def generate_tearsheet_pdf(company_id: str):
     story.append(Paragraph(f"<b>{company_name} ({company_id}) — Financial Position & Highlights</b>", title_style))
     story.append(Spacer(1, 8))
 
-    # Pros & Cons Section
-    pros_list = df_pros[df_pros['type'] == 'pro']['text'].tolist() if not df_pros.empty else ["Solid market presence."]
-    cons_list = df_pros[df_pros['type'] == 'con']['text'].tolist() if not df_pros.empty else ["Macro-economic cyclical risks."]
+    # Pros & Cons Section (prosandcons table columns are named 'pros' and 'cons')
+    pros_list = []
+    cons_list = []
+    if not df_pros.empty:
+        pros_raw = df_pros.iloc[0].get("pros")
+        cons_raw = df_pros.iloc[0].get("cons")
+        if pd.notna(pros_raw) and str(pros_raw).strip():
+            pros_list = [p.strip() for p in str(pros_raw).split("\n") if p.strip()]
+        if pd.notna(cons_raw) and str(cons_raw).strip():
+            cons_list = [c.strip() for c in str(cons_raw).split("\n") if c.strip()]
+
+    if not pros_list:
+        pros_list = ["Solid market presence."]
+    if not cons_list:
+        cons_list = ["Macro-economic cyclical risks."]
 
     pros_text = "<br/>".join([f"• {p}" for p in pros_list[:4]])
     cons_text = "<br/>".join([f"• {c}" for c in cons_list[:4]])
