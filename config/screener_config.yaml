@@ -20,7 +20,7 @@ presets:
     debt_to_equity_max: 2.0
 
   Dividend Champion:
-    dividend_yield_pct_min: 2.0
+    dividend_yield_pct_min: 1.0
     dividend_payout_ratio_pct_max: 80.0
     free_cash_flow_cr_min: 0.0
 

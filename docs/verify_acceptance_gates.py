@@ -1,4 +1,9 @@
 import os
+import sys
+# Ensure repo root is on sys.path so `python docs/verify_acceptance_gates.py`
+# works from the repo root without needing PYTHONPATH set externally.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import glob
 import sqlite3
 import pandas as pd
@@ -127,10 +132,10 @@ def run_acceptance_checks():
     results.append(("AC-12", "TCS Ratios Endpoint >= 10 yrs", f"Years returned: {c12}", "PASS" if c12 >= 10 else "FAIL"))
 
     # AC-13: API screener matches engine output
-    api_scr_resp = client.get("/api/v1/screener?min_roe=15&max_de=1&min_fcf=0")
+    api_scr_resp = client.get("/api/v1/screener?min_roe=15&max_de=1&min_fcf=0&min_rev_cagr_5yr=10")
     api_tickers = set(item['company_id'] for item in api_scr_resp.json()) if api_scr_resp.status_code == 200 else set()
     preset_df = run_preset_screener("Quality Compounder")
-    # Quality Compounder filters: ROE >= 15%, D/E <= 1.0, FCF > 0
+    # Quality Compounder filters: ROE >= 15%, D/E <= 1.0, FCF > 0, Revenue CAGR 5yr >= 10%
     preset_tickers = set(preset_df['company_id'].tolist())
     ticker_diff_count = len(api_tickers.symmetric_difference(preset_tickers))
     results.append(("AC-13", "API Screener Output Parity", f"Ticker diff count vs engine: {ticker_diff_count} (API: {len(api_tickers)}, Engine: {len(preset_tickers)})", "PASS" if ticker_diff_count <= 5 else "FAIL"))

@@ -39,6 +39,16 @@ def get_screener_data(conn=None) -> pd.DataFrame:
         df_bs = pd.read_sql_query("SELECT * FROM balancesheet", conn)
         df_cf = pd.read_sql_query("SELECT * FROM cashflow", conn)
         df_mcap = pd.read_sql_query("SELECT * FROM market_cap", conn)
+        # Valuation snapshot (one row per company — latest PE/PB/market cap)
+        # Rename to avoid name collision with other merged tables that may already have pe_ratio/pb_ratio
+        try:
+            df_val = pd.read_sql_query(
+                "SELECT company_id, pe_ratio AS val_pe_ratio, pb_ratio AS val_pb_ratio,"
+                " market_cap_crore AS val_market_cap_crore FROM valuation",
+                conn
+            )
+        except Exception:
+            df_val = pd.DataFrame(columns=["company_id", "val_pe_ratio", "val_pb_ratio", "val_market_cap_crore"])
     finally:
         if close_conn:
             conn.close()
@@ -63,6 +73,39 @@ def get_screener_data(conn=None) -> pd.DataFrame:
     df = df.merge(df_cf, on=["company_id", "year"], how="left")
     df = df.merge(df_mcap, on=["company_id", "_fy_year"], how="left")
     df = df.drop(columns=["_fy_year"])
+
+    # Merge valuation snapshot (pe_ratio, pb_ratio) — broadcast to all years for that company
+    if not df_val.empty:
+        df = df.merge(df_val, on="company_id", how="left")
+        # Assign clean canonical column names
+        df["pe_ratio"] = df["val_pe_ratio"] if "val_pe_ratio" in df.columns else np.nan
+        df["pb_ratio"] = df["val_pb_ratio"] if "val_pb_ratio" in df.columns else np.nan
+        # Prefer market_cap_crore from market_cap table; supplement with valuation if missing
+        if "market_cap_crore" in df.columns and "val_market_cap_crore" in df.columns:
+            df["market_cap_crore"] = df["market_cap_crore"].fillna(df["val_market_cap_crore"])
+        elif "val_market_cap_crore" in df.columns:
+            df["market_cap_crore"] = df["val_market_cap_crore"]
+        # Drop the prefixed staging columns
+        drop_cols = [c for c in ["val_pe_ratio", "val_pb_ratio", "val_market_cap_crore"] if c in df.columns]
+        if drop_cols:
+            df = df.drop(columns=drop_cols)
+    else:
+        df["pe_ratio"] = np.nan
+        df["pb_ratio"] = np.nan
+
+    # Compute dividend_yield_pct = dividend_payout_ratio / pe_ratio
+    # (dividend per share = payout% * eps; price = pe * eps; yield = dps/price)
+    _eps = df["eps"] if "eps" in df.columns else pd.Series(np.nan, index=df.index)
+    _div_payout = df["dividend_payout"] if "dividend_payout" in df.columns else (
+        df["dividend_payout_ratio_pct"] if "dividend_payout_ratio_pct" in df.columns
+        else pd.Series(np.nan, index=df.index)
+    )
+    _pe = df["pe_ratio"] if "pe_ratio" in df.columns else pd.Series(np.nan, index=df.index)
+    df["dividend_yield_pct"] = np.where(
+        (_pe > 0) & (_eps > 0) & _div_payout.notna() & (_div_payout > 0),
+        (_div_payout / 100.0) / _pe * 100.0,
+        np.nan
+    )
 
     # Compute ROCE: EBIT / (equity_capital + reserves + borrowings) * 100
     # EBIT = operating_profit - depreciation
