@@ -6,7 +6,7 @@ import pandas as pd
 DB_PATH = os.getenv("DB_PATH", "data/nifty100.db")
 
 def parse_analysis_text():
-    """
+    r"""
     Parses compound growth text fields using regex matching (\d+)\s*Years?:?\s*([\d.]+)%.
     Generates output/analysis_parsed.csv and output/parse_failures.csv.
     """
